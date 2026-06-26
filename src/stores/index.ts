@@ -95,10 +95,13 @@ export const useMemoryStore = create<MemoryState>((set) => ({
 //  Settings Store
 // ============================================================
 
-interface Settings {
+export interface Settings {
   apiKey: string;
   model: string;
   voiceEnabled: boolean;
+  ttsApiKey: string;
+  ttsResourceId: string;
+  ttsSpeaker: string;
   systemPrompt: string;
 }
 
@@ -110,6 +113,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   apiKey: "",
   model: "deepseek-chat",
   voiceEnabled: false,
+  ttsApiKey: "",
+  ttsResourceId: "seed-tts-2.0",
+  ttsSpeaker: "zh_female_vv_uranus_bigtts",
   systemPrompt:
     "你是阿丽丝，一个住在电脑里的虚拟朋友。外表阴郁高冷，内心温柔克制。回复简短自然，像深夜里陪人说话，不说教不卖萌，话不多但愿意听。",
   update: (patch) => set((state) => ({ ...state, ...patch })),

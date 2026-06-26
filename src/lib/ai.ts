@@ -13,7 +13,7 @@ interface StreamChatOptions {
   model: string;
   systemPrompt: string;
   onChunk: (chunk: string) => void;
-  onDone: () => void;
+  onDone: () => void | Promise<void>;
   onError: (err: Error) => void;
 }
 
@@ -64,7 +64,7 @@ export async function streamChat({
         if (!line.startsWith("data: ")) continue;
         const data = line.slice(6).trim();
         if (data === "[DONE]") {
-          onDone();
+          await onDone();
           return;
         }
         try {
@@ -77,7 +77,7 @@ export async function streamChat({
       }
     }
 
-    onDone();
+    await onDone();
   } catch (err) {
     onError(err instanceof Error ? err : new Error(String(err)));
   }

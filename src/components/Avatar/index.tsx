@@ -6,6 +6,7 @@
  */
 
 import { useChatStore } from "@/stores";
+import calmAvatarUrl from "../../../平静.png";
 
 const statusLabel: Record<string, string> = {
   idle: "",
@@ -49,11 +50,11 @@ export function Avatar() {
             isActive ? "avatar-glow-active" : "avatar-glow"
           }`}
         >
-          <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
-            <span className="material-symbols-outlined text-6xl text-on-surface-variant/30">
-              face
-            </span>
-          </div>
+          <img
+            src={calmAvatarUrl}
+            alt="Alice"
+            className="w-full h-full object-cover bg-surface-container-high"
+          />
         </div>
 
         {/* 录音波形圆环 */}

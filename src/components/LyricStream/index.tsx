@@ -24,8 +24,8 @@ export function LyricStream() {
   }, [messages.length]);
 
   return (
-    <section className="relative w-full max-w-3xl mx-auto flex flex-col items-center justify-end h-full pb-4 lyric-gradient pointer-events-none select-none">
-      <div className="flex flex-col items-center text-center w-full space-y-6 px-8">
+    <section className="relative w-full max-w-3xl mx-auto flex flex-col items-center justify-end h-full pb-4 lyric-gradient pointer-events-none select-none overflow-hidden">
+      <div className="flex flex-col items-center text-center w-full space-y-4 px-8">
         {visible.map((msg, i) => {
           const opacity = opacityMap[i + (VISIBLE - visible.length)];
           const isCurrent = i === visible.length - 1;
@@ -44,12 +44,12 @@ export function LyricStream() {
                   className={`text-display leading-tight text-glow px-4 ${
                     isUser ? "text-on-surface" : "text-primary"
                   }`}
-                  style={{ fontSize: "clamp(24px, 4vw, 48px)" }}
+                  style={{ fontSize: "clamp(16px, 2vw, 26px)" }}
                 >
                   {isUser ? `"${msg.text}"` : msg.text}
                 </p>
               ) : (
-                <p className="text-body-lg text-on-surface-variant">
+                <p className="text-body-sm text-on-surface-variant">
                   {msg.text}
                 </p>
               )}

@@ -24,7 +24,7 @@ export function DrawerPanel() {
 
   return (
     <div
-      className={`fixed top-0 bottom-0 left-16 w-[520px] bg-surface-container-low border-r border-outline-variant/10 z-40 backdrop-blur-3xl transition-transform duration-500 ease-in-out shadow-[40px_0_100px_rgba(0,0,0,0.6)] ${
+      className={`fixed top-0 bottom-0 left-16 w-[520px] bg-surface-container-low border-r border-outline-variant/10 z-[60] backdrop-blur-3xl transition-transform duration-500 ease-in-out shadow-[40px_0_100px_rgba(0,0,0,0.6)] ${
         isOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >

@@ -5,8 +5,9 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useSettingsStore, useChatStore, useMemoryStore } from "@/stores";
-import { clearMessages, clearMemories } from "@/lib/db";
+import { useState } from "react";
+import { useSettingsStore, useChatStore, useMemoryStore, type Settings } from "@/stores";
+import { clearMessages, clearMemories, saveSettings } from "@/lib/db";
 
 const MODELS = [
   { value: "deepseek-chat", label: "DeepSeek Chat" },
@@ -14,9 +15,37 @@ const MODELS = [
 ];
 
 export function SettingsDrawer() {
-  const settings = useSettingsStore();
+  const [draft, setDraft] = useState<Settings>(() => {
+    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, systemPrompt } = useSettingsStore.getState();
+    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, systemPrompt };
+  });
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const clearChat = useChatStore((s) => s.clearMessages);
   const setFragments = useMemoryStore((s) => s.setFragments);
+
+  const updateDraft = (patch: Partial<Settings>) => {
+    setSaveState("idle");
+    setDraft((s) => ({ ...s, ...patch }));
+  };
+
+  const persist = async (next: Settings) => {
+    setSaveState("saving");
+    try {
+      await saveSettings(next);
+      useSettingsStore.getState().update(next);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  };
+
+  const handleSave = () => persist(draft);
+
+  const toggleTtsReply = async () => {
+    const next = { ...draft, voiceEnabled: !draft.voiceEnabled };
+    setDraft(next);
+    await persist(next);
+  };
 
   const handleClearMessages = async () => {
     if (!confirm("清空全部聊天记录？")) return;
@@ -42,8 +71,8 @@ export function SettingsDrawer() {
         <Field label="API Key">
           <input
             type="password"
-            value={settings.apiKey}
-            onChange={(e) => settings.update({ apiKey: e.target.value })}
+            value={draft.apiKey}
+            onChange={(e) => updateDraft({ apiKey: e.target.value })}
             placeholder="sk-..."
             className="input-line"
           />
@@ -52,8 +81,8 @@ export function SettingsDrawer() {
         {/* 模型选择 */}
         <Field label="Model">
           <select
-            value={settings.model}
-            onChange={(e) => settings.update({ model: e.target.value })}
+            value={draft.model}
+            onChange={(e) => updateDraft({ model: e.target.value })}
             className="input-line bg-transparent"
           >
             {MODELS.map((m) => (
@@ -64,34 +93,76 @@ export function SettingsDrawer() {
           </select>
         </Field>
 
-        {/* 语音开关 */}
-        <Field label="Voice Reply">
+        {/* TTS 开关 */}
+        <Field label="TTS Reply">
           <button
-            onClick={() => settings.update({ voiceEnabled: !settings.voiceEnabled })}
+            onClick={toggleTtsReply}
             className={`w-10 h-5 rounded-full transition-colors relative ${
-              settings.voiceEnabled ? "bg-primary" : "bg-outline-variant"
+              draft.voiceEnabled ? "bg-primary" : "bg-outline-variant"
             }`}
           >
             <span
               className={`absolute top-0.5 w-4 h-4 rounded-full bg-on-primary transition-transform ${
-                settings.voiceEnabled ? "translate-x-5" : "translate-x-0.5"
+                draft.voiceEnabled ? "translate-x-5" : "translate-x-0.5"
               }`}
             />
           </button>
           <span className="text-label-sm text-outline ml-3">
-            {settings.voiceEnabled ? "ON" : "OFF — TTS 接入后生效"}
+            {draft.voiceEnabled ? "ON" : "OFF"}
           </span>
+        </Field>
+
+        <Field label="Volcengine API Key">
+          <input
+            type="password"
+            value={draft.ttsApiKey}
+            onChange={(e) => updateDraft({ ttsApiKey: e.target.value })}
+            placeholder="火山 API Key，TTS/ASR 共用"
+            className="input-line"
+          />
+        </Field>
+
+        <Field label="TTS Resource ID">
+          <input
+            type="text"
+            value={draft.ttsResourceId}
+            onChange={(e) => updateDraft({ ttsResourceId: e.target.value })}
+            placeholder="seed-tts-2.0"
+            className="input-line"
+          />
+        </Field>
+
+        <Field label="TTS Speaker">
+          <input
+            type="text"
+            value={draft.ttsSpeaker}
+            onChange={(e) => updateDraft({ ttsSpeaker: e.target.value })}
+            className="input-line"
+          />
         </Field>
 
         {/* 人格设定 */}
         <Field label="Alice's Persona">
           <textarea
-            value={settings.systemPrompt}
-            onChange={(e) => settings.update({ systemPrompt: e.target.value })}
+            value={draft.systemPrompt}
+            onChange={(e) => updateDraft({ systemPrompt: e.target.value })}
             rows={5}
             className="w-full bg-transparent border border-outline-variant/20 focus:border-primary/40 rounded p-3 text-body-md text-on-surface-variant focus:outline-none transition-colors resize-none"
           />
         </Field>
+
+        <div className="pt-2">
+          <button
+            onClick={handleSave}
+            disabled={saveState === "saving"}
+            className="w-full bg-primary/90 hover:bg-primary text-on-primary transition-all py-3 text-label-md uppercase tracking-[0.15em] active:scale-[0.98] disabled:opacity-50"
+          >
+            {saveState === "saving" ? "保存中..." : saveState === "saved" ? "已保存" : "保存设置"}
+          </button>
+          {saveState === "error" && (
+            <p className="mt-2 text-label-sm text-error/80">保存失败，请稍后重试。</p>
+          )}
+        </div>
 
         {/* 危险操作 */}
         <div className="pt-4 space-y-4 border-t border-outline-variant/10">

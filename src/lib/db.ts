@@ -1,12 +1,12 @@
 /**
  * [INPUT]: 依赖 @tauri-apps/plugin-sql 的 Database
- * [OUTPUT]: 对外提供 db 单例、initDb、saveMessage、getMessages、saveMemory、getMemories、clearMessages、clearMemories
+ * [OUTPUT]: 对外提供 db 单例、initDb、消息/记忆/设置的 SQLite 读写函数
  * [POS]: lib 层的数据持久化，封装 SQLite 操作
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import Database from "@tauri-apps/plugin-sql";
-import type { Message, MemoryFragment } from "@/stores";
+import type { Message, MemoryFragment, Settings } from "@/stores";
 
 let _db: Database | null = null;
 
@@ -32,6 +32,12 @@ async function initDb(db: Database) {
       id TEXT PRIMARY KEY,
       content TEXT NOT NULL,
       created_at INTEGER NOT NULL
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     )
   `);
 }
@@ -75,4 +81,23 @@ export async function clearMessages() {
 export async function clearMemories() {
   const db = await getDb();
   await db.execute("DELETE FROM memories");
+}
+
+export async function saveSettings(settings: Settings) {
+  const db = await getDb();
+  await db.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    ["app", JSON.stringify(settings)]
+  );
+}
+
+export async function getSettings(): Promise<Partial<Settings> | null> {
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = ? LIMIT 1",
+    ["app"]
+  );
+
+  if (!rows[0]) return null;
+  return JSON.parse(rows[0].value) as Partial<Settings>;
 }

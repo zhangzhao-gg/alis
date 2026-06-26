@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖所有组件；依赖 lib/db 的 getMessages、getMemories；依赖 stores
+ * [INPUT]: 依赖所有组件；依赖 lib/db 的 getMessages、getMemories、getSettings；依赖 stores
  * [OUTPUT]: 对外提供 App 根组件
  * [POS]: 应用入口，组装布局，启动时加载持久化数据
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -11,8 +11,8 @@ import { Avatar } from "@/components/Avatar";
 import { LyricStream } from "@/components/LyricStream";
 import { InputBar } from "@/components/InputBar";
 import { DrawerPanel } from "@/components/drawers/DrawerPanel";
-import { useChatStore, useMemoryStore } from "@/stores";
-import { getMessages, getMemories } from "@/lib/db";
+import { useChatStore, useMemoryStore, useSettingsStore } from "@/stores";
+import { getMessages, getMemories, getSettings } from "@/lib/db";
 
 export default function App() {
   const setFragments = useMemoryStore((s) => s.setFragments);
@@ -25,6 +25,12 @@ export default function App() {
 
     getMemories()
       .then(setFragments)
+      .catch(() => {});
+
+    getSettings()
+      .then((settings) => {
+        if (settings) useSettingsStore.getState().update(settings);
+      })
       .catch(() => {});
   }, []);
 
@@ -45,7 +51,7 @@ export default function App() {
         <Avatar />
 
         {/* 歌词流对话区 */}
-        <div className="absolute bottom-32 left-16 right-0 flex justify-center">
+        <div className="absolute top-[42%] bottom-32 left-16 right-0 flex justify-center">
           <LyricStream />
         </div>
       </main>

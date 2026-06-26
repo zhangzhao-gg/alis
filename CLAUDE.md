@@ -25,9 +25,9 @@ src-tauri/Cargo.toml        - tauri + tauri-plugin-sql(sqlite) + serde
 ## 架构决策
 - **状态**：Zustand 四个 store 分离关注点（chat/ui/memory/settings），不共享 reducer
 - **AI**：DeepSeek `/v1/chat/completions` SSE streaming，前端直接 fetch（Tauri CSP 设 null）
-- **DB**：tauri-plugin-sql 封装 SQLite，前端通过 `@tauri-apps/plugin-sql` 读写，两张表 messages/memories
+- **DB**：tauri-plugin-sql 封装 SQLite，前端通过 `@tauri-apps/plugin-sql` 读写 messages/memories/settings
 - **抽屉**：DrawerPanel 单容器 + activeDrawer 状态驱动，零路由跳转
-- **语音**：ASR/TTS 预留接口（豆包，后续接入），InputBar mic 按钮已占位
+- **语音**：TTS 使用 Tauri 后端请求火山 HTTP 接口，ASR 使用前端录制 16kHz WAV + Tauri 后端火山 WebSocket
 
 ## 开发
 ```

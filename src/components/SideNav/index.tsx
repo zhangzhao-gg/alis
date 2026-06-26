@@ -18,7 +18,7 @@ export function SideNav() {
   const { activeDrawer, toggleDrawer } = useUIStore();
 
   return (
-    <nav className="fixed left-0 top-0 h-full w-16 z-50 flex flex-col items-center py-16 bg-surface-container-low/20 backdrop-blur-xl border-r border-outline-variant/10">
+    <nav className="fixed left-0 top-0 h-full w-16 z-[70] flex flex-col items-center py-16 bg-surface-container-low/20 backdrop-blur-xl border-r border-outline-variant/10">
       <div className="text-on-surface tracking-widest [writing-mode:vertical-lr] rotate-180 mb-12 text-sm font-medium">
         ALICE
       </div>
