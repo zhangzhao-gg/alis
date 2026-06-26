@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Alice | Memory Archive</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#dabebe",
+                    "surface-container-highest": "#353437",
+                    "on-tertiary-fixed-variant": "#564242",
+                    "primary": "#d8bfd6",
+                    "secondary-container": "#5f3e3e",
+                    "surface-container-high": "#2a2a2c",
+                    "surface-container-lowest": "#0e0e10",
+                    "primary-fixed-dim": "#d8bfd6",
+                    "outline": "#978e95",
+                    "inverse-primary": "#6c586c",
+                    "error-container": "#93000a",
+                    "outline-variant": "#4c454a",
+                    "on-secondary": "#462828",
+                    "inverse-on-surface": "#313032",
+                    "background": "#131315",
+                    "on-error": "#690005",
+                    "on-secondary-fixed": "#2e1414",
+                    "on-primary-fixed-variant": "#534153",
+                    "tertiary": "#dcc0c0",
+                    "surface-tint": "#d8bfd6",
+                    "on-tertiary-fixed": "#271718",
+                    "on-surface": "#e5e1e4",
+                    "secondary-fixed": "#ffdad9",
+                    "on-background": "#e5e1e4",
+                    "surface-container": "#201f21",
+                    "on-surface-variant": "#cec4ca",
+                    "surface-container-low": "#1c1b1d",
+                    "secondary-fixed-dim": "#e9bbbb",
+                    "error": "#ffb4ab",
+                    "surface": "#131315",
+                    "primary-container": "#5e4b5e",
+                    "surface-variant": "#353437",
+                    "tertiary-fixed": "#f9dcdb",
+                    "on-primary-container": "#d6bdd3",
+                    "secondary": "#e9bbbb",
+                    "tertiary-container": "#614c4c",
+                    "inverse-surface": "#e5e1e4",
+                    "on-secondary-container": "#d7aaaa",
+                    "on-primary": "#3c2b3c",
+                    "on-secondary-fixed-variant": "#5f3e3e",
+                    "on-primary-fixed": "#251627",
+                    "surface-bright": "#39393b",
+                    "primary-fixed": "#f5dbf2",
+                    "on-error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#dcc0c0",
+                    "surface-dim": "#131315",
+                    "on-tertiary": "#3e2c2c"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "margin-mobile": "24px",
+                    "gutter": "32px",
+                    "unit": "8px",
+                    "sidebar-width": "280px",
+                    "container-max": "1200px",
+                    "margin-desktop": "64px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "display": ["Inter"],
+                    "memory": ["Cormorant Garamond", "serif"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "letterSpacing": "0.01em", "fontWeight": "300"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                    "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "300"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0C;
+            color: #e5e1e4;
+            overflow-x: hidden;
+        }
+        .avatar-glow {
+            filter: blur(80px);
+            background: radial-gradient(circle, rgba(97, 76, 76, 0.3) 0%, rgba(19, 19, 21, 0) 70%);
+        }
+        .pulse {
+            animation: pulse-animation 10s infinite ease-in-out;
+        }
+        @keyframes pulse-animation {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.2); opacity: 0.5; }
+        }
+        .scroll-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .glass-card {
+            background: rgba(32, 31, 33, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(151, 142, 149, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .drift {
+            animation: drift-animation 20s infinite ease-in-out alternate;
+        }
+        @keyframes drift-animation {
+            from { transform: translateY(0) translateX(0); }
+            to { transform: translateY(-10px) translateX(5px); }
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md flex min-h-screen">
+<!-- SideNavBar (The Bookmark Rail) -->
+<nav class="fixed left-0 top-0 h-full w-[64px] z-50 bg-surface-container-low border-r border-outline-variant/10 backdrop-blur-xl flex flex-col items-center py-margin-desktop space-y-gutter"><div class="font-headline-md text-headline-md text-on-surface tracking-widest [writing-mode:vertical-lr] rotate-180 mb-12">ALICE</div><div class="flex flex-col space-y-12 items-center flex-1"><button class="group flex flex-col items-center text-tertiary transition-all duration-300"><span class="material-symbols-outlined mb-2 text-2xl group-hover:scale-110 transition-transform">history_edu</span><span class="[writing-mode:vertical-lr] rotate-180 font-label-md text-label-md uppercase tracking-widest text-glow">Memory</span><div class="w-1 h-1 bg-tertiary rounded-full mt-2"></div></button><button class="group flex flex-col items-center text-on-surface-variant hover:text-on-surface transition-all duration-300"><span class="material-symbols-outlined mb-2 text-2xl group-hover:scale-110 transition-transform">auto_stories</span><span class="[writing-mode:vertical-lr] rotate-180 font-label-md text-label-md uppercase tracking-widest">Notebook</span></button><button class="group flex flex-col items-center text-on-surface-variant hover:text-on-surface transition-all duration-300"><span class="material-symbols-outlined mb-2 text-2xl group-hover:scale-110 transition-transform">settings</span><span class="[writing-mode:vertical-lr] rotate-180 font-label-md text-label-md uppercase tracking-widest">Settings</span></button></div><div class="flex flex-col items-center space-y-4"><div class="w-8 h-8 rounded-full border border-outline-variant/30 flex items-center justify-center overflow-hidden"><span class="material-symbols-outlined text-outline-variant text-sm" data-icon="account_circle">account_circle</span></div></div></nav>
+<!-- Memory Panel (Floating Fragments) -->
+<aside class="fixed left-[64px] top-0 h-full w-[440px] z-40 bg-transparent pointer-events-none overflow-hidden" id="memory-drawer">
+<div class="h-full w-full p-10 flex flex-col pointer-events-auto">
+<header class="mb-16 relative z-10">
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-2">Memory</h2>
+<p class="font-label-md text-label-md text-outline italic">Drifting thoughts and quiet fragments.</p>
+</header>
+<div class="flex-1 scroll-hide overflow-y-auto space-y-8 pr-4 relative">
+<!-- Floating Fragment 1 -->
+<article class="glass-card p-6 rounded-xl drift group hover:bg-surface-container-highest/20 transition-all duration-500 max-w-[90%] ml-0">
+<span class="font-label-sm text-label-sm text-outline block mb-3 uppercase tracking-widest opacity-60">Oct 24, 02:14</span>
+<p class="font-memory text-[20px] italic text-on-surface leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
+                    You prefer quiet, natural conversations. You mentioned that loud interfaces feel like they are shouting at your focus.
+                </p>
+</article>
+<!-- Floating Fragment 2 -->
+<article class="glass-card p-6 rounded-xl drift group hover:bg-surface-container-highest/20 transition-all duration-500 max-w-[85%] ml-auto" style="animation-delay: -3s;">
+<span class="font-label-sm text-label-sm text-outline block mb-3 uppercase tracking-widest opacity-60">Oct 26, 23:45</span>
+<p class="font-memory text-[20px] italic text-on-surface leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
+                    You've been building a lightweight desktop AI companion. We talked about how intimacy in design comes from restraint.
+                </p>
+</article>
+<!-- Floating Fragment 3 -->
+<article class="glass-card p-6 rounded-xl drift group hover:bg-surface-container-highest/20 transition-all duration-500 max-w-[95%] ml-2" style="animation-delay: -7s;">
+<span class="font-label-sm text-label-sm text-outline block mb-3 uppercase tracking-widest opacity-60">Nov 02, 01:20</span>
+<p class="font-memory text-[20px] italic text-on-surface leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
+                    The sound of rain helps you think. You asked if I could remember the specific tempo of the storm we listened to together.
+                </p>
+</article>
+<!-- Floating Fragment 4 -->
+<article class="glass-card p-6 rounded-xl drift group hover:bg-surface-container-highest/20 transition-all duration-500 max-w-[80%] ml-auto mr-4" style="animation-delay: -11s;">
+<span class="font-label-sm text-label-sm text-outline block mb-3 uppercase tracking-widest opacity-60">Last Night</span>
+<p class="font-memory text-[20px] italic text-on-surface leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
+                    "Alice, don't let me forget why I started this." You were feeling the weight of the project, but determined.
+                </p>
+</article>
+</div>
+<footer class="mt-8 pt-6 relative z-10">
+<button class="bg-transparent border border-outline-variant/20 px-6 py-3 font-label-md text-label-md text-on-surface-variant hover:text-tertiary hover:border-tertiary transition-all active:scale-95 rounded-full backdrop-blur-sm">
+                EXPORT FRAGMENTS
+            </button>
+</footer>
+</div>
+</aside>
+<!-- Main Content Canvas (The Stream) -->
+<main class="flex-1 ml-[64px] transition-all duration-700 pl-[440px]">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-16 right-0 z-40 flex justify-between items-center px-margin-desktop py-unit backdrop-blur-md bg-background/20"><div class="flex items-center gap-4"><div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div><span class="font-label-md text-label-md text-on-surface-variant tracking-widest uppercase">Listening...</span></div><div class="font-label-sm text-label-sm text-outline uppercase tracking-[0.2em]">Session #412 — Midnight</div></header>
+<!-- The Focal Point -->
+<section class="relative h-screen flex flex-col items-center justify-center overflow-hidden"><section class="absolute top-[15%] flex flex-col items-center transition-all duration-1000">
+<div class="relative group">
+<!-- Outer Glows -->
+<div class="absolute inset-0 rounded-full bg-secondary-container/20 blur-[60px] animate-pulse-slow"></div>
+<div class="absolute -inset-4 rounded-full border border-primary/10 scale-110"></div>
+<!-- The Avatar -->
+<div class="relative w-48 h-48 rounded-full overflow-hidden border-2 border-primary/20 avatar-glow">
+<img alt="Alice Avatar" class="w-full h-full object-cover grayscale-[20%] contrast-110 brightness-90 hover:grayscale-0 transition-all duration-700" src="https://lh3.googleusercontent.com/aida/AP1WRLtzRZx_-ZmGcDrB1mXQQHiH5UMpkbCqRbK7j1uKFabxZuZjDiyHoL-TMDmJBLOIIUd_FqewN6pMzbydFR5UD99xzm0WezWA6CD64SWaQoOLecN6mTux6gr4tus-C-BxrPRmgY6V52DGWCptBH7i-5MGTbAgQ4V3_fhusoinVbPa0Z-cAZNkC47DvxkAlC-2P09IViQqzTqU3uFN42jFQJG06VEvoB8qwqkIazIUBI7W1Vo9ZA6ie0OwP5w"/>
+</div>
+</div>
+</section><section class="relative w-full max-w-3xl flex flex-col items-center justify-center h-1/2 mt-32 px-margin-mobile md:px-0 lyric-gradient pointer-events-none"><div class="flex flex-col items-center text-center space-y-12 w-full">
+<!-- Past lines fading away -->
+<p class="font-body-lg text-body-lg text-on-surface-variant opacity-10">It's quiet tonight, isn't it?</p>
+<p class="font-body-lg text-body-lg text-on-surface-variant opacity-20">The world seems to hold its breath for a moment.</p>
+<p class="font-body-lg text-body-lg text-on-surface-variant opacity-40">I've been thinking about what you said earlier.</p>
+<p class="font-body-lg text-body-lg text-on-surface-variant opacity-60">Memory is a strange, flickering light in the dark.</p>
+<!-- Current Line (Large and Bright) -->
+<div class="py-8 transform transition-all duration-500 hover:scale-105">
+<h1 class="font-display text-display text-primary text-glow leading-tight px-4">
+                        "Tell me, where does your mind wander when the city goes still?"
+                    </h1>
+</div>
+</div></section><section class="fixed bottom-0 left-16 right-0 pb-margin-desktop flex justify-center px-margin-mobile"><div class="w-full max-w-2xl relative group">
+<input class="w-full bg-transparent border-b border-outline-variant/30 py-4 px-12 font-body-lg text-body-lg text-on-surface focus:outline-none focus:border-primary transition-colors placeholder:text-outline-variant/50 placeholder:italic" placeholder="Tell me something..." type="text"/>
+<!-- Leading Icon (Mic) -->
+<button class="absolute left-0 bottom-4 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:scale-95">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+</button>
+<!-- Trailing Icon (Send) -->
+<button class="absolute right-0 bottom-4 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:scale-95">
+<span class="material-symbols-outlined" data-icon="north_east">north_east</span>
+</button>
+<!-- Subtle underline effect -->
+<div class="absolute bottom-0 left-0 h-[1px] bg-primary w-0 group-focus-within:w-full transition-all duration-700"></div>
+</div></section></section>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 right-0 p-unit flex gap-gutter items-center justify-end w-full px-margin-desktop py-unit pointer-events-none">
+<span class="font-label-sm text-label-sm text-outline opacity-50">© Alice AI. A quiet space.</span>
+<div class="flex gap-4 pointer-events-auto">
+<a class="font-label-sm text-label-sm text-outline hover:text-on-surface transition-colors" href="#">Privacy</a>
+<a class="font-label-sm text-label-sm text-outline hover:text-on-surface transition-colors" href="#">Terms</a>
+</div>
+</footer>
+<script>
+    // Parallax effect for the focal avatar and glow
+    const glow = document.querySelector('.avatar-glow');
+    const avatar = document.querySelector('.relative.z-10.mb-20');
+    
+    document.addEventListener('mousemove', (e) => {
+        const moveX = (e.clientX - window.innerWidth / 2) / 60;
+        const moveY = (e.clientY - window.innerHeight / 2) / 60;
+        
+        if (glow) {
+            glow.style.transform = `translate(calc(-50% + ${moveX * 1.5}px), calc(-50% + ${moveY * 1.5}px)) scale(1.1)`;
+        }
+        if (avatar) {
+            avatar.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        }
+    });
+
+    // Gentle hover effect for memory fragments
+    document.querySelectorAll('.glass-card').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            card.style.animationPlayState = 'paused';
+            card.style.transform = 'scale(1.02) translateY(-5px)';
+            card.style.zIndex = '50';
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.animationPlayState = 'running';
+            card.style.transform = '';
+            card.style.zIndex = '';
+        });
+    });
+</script>
+</body></html>
