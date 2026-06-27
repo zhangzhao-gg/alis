@@ -9,6 +9,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useChatStore, useMemoryStore, useSettingsStore, useUIStore } from "@/stores";
 import { streamChat } from "@/lib/ai";
 import { saveMessage } from "@/lib/db";
+import { tickAndDistill } from "@/lib/memory";
 import { playTts } from "@/lib/tts";
 import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt } from "@/lib/persona";
 import { getDisplayText, getSpokenText } from "@/lib/messageText";
@@ -98,7 +99,7 @@ export function InputBar() {
     let accumulated = "";
     const aliceId = crypto.randomUUID();
     const aliceTs = Date.now();
-    const history = useChatStore.getState().messages;
+    const history = useChatStore.getState().messages.slice(-40);
     const memories = useMemoryStore.getState().fragments;
 
     useChatStore.setState((s) => ({
@@ -134,6 +135,11 @@ export function InputBar() {
           timestamp: aliceTs,
         };
         await saveMessage(finalMsg);
+
+        // 计数并按需触发记忆蒸馏（fire-and-forget，不阻塞回复流）
+        const { apiKey, model } = useSettingsStore.getState();
+        void tickAndDistill(useChatStore.getState().messages, apiKey, model);
+
         try {
           await speakReply(
             getSpokenText(accumulated),

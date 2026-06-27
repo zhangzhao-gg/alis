@@ -16,8 +16,11 @@ export interface Message {
   timestamp: number;
 }
 
+export type MemoryType = "trait" | "event" | "feeling" | "bond" | "general";
+
 export interface MemoryFragment {
   id: string;
+  type: MemoryType;
   content: string;
   createdAt: number;
 }
@@ -76,18 +79,18 @@ export const useUIStore = create<UIState>((set, get) => ({
 interface MemoryState {
   fragments: MemoryFragment[];
   setFragments: (f: MemoryFragment[]) => void;
-  addFragment: (content: string) => void;
+  addFragment: (content: string, type?: MemoryType) => void;
   removeFragment: (id: string) => void;
 }
 
 export const useMemoryStore = create<MemoryState>((set) => ({
   fragments: [],
   setFragments: (fragments) => set({ fragments }),
-  addFragment: (content) =>
+  addFragment: (content, type = "general") =>
     set((state) => ({
       fragments: [
         ...state.fragments,
-        { id: crypto.randomUUID(), content, createdAt: Date.now() },
+        { id: crypto.randomUUID(), type, content, createdAt: Date.now() },
       ],
     })),
   removeFragment: (id) =>

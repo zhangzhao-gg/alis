@@ -1,4 +1,12 @@
-import type { MemoryFragment } from "@/stores";
+import type { MemoryFragment, MemoryType } from "@/stores";
+
+const TYPE_LABELS: Record<MemoryType, string> = {
+  trait:   "用户性格与习惯",
+  event:   "经历与事件",
+  feeling: "情绪倾向",
+  bond:    "共同记忆",
+  general: "其他记忆",
+};
 
 export const TAVERN_SYSTEM_PROMPT = [
   "你正在进行一场沉浸式角色扮演对话。",
@@ -173,14 +181,21 @@ const TAYAMA_PERSONA = String.raw`
 `.trim();
 
 export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
-  const memoryText = memories.length
-    ? memories.map((memory) => `- ${memory.content}`).join("\n")
-    : "- 暂无长期记忆。";
+  let memoryText: string;
 
-  return [
-    TAYAMA_PERSONA,
-    "",
-    "# 长期记忆",
-    memoryText,
-  ].join("\n");
+  if (!memories.length) {
+    memoryText = "- 暂无长期记忆。";
+  } else {
+    const groups = new Map<MemoryType, string[]>();
+    for (const m of memories) {
+      const list = groups.get(m.type) ?? [];
+      list.push(`- ${m.content}`);
+      groups.set(m.type, list);
+    }
+    memoryText = [...groups.entries()]
+      .map(([type, items]) => `### ${TYPE_LABELS[type]}\n${items.join("\n")}`)
+      .join("\n\n");
+  }
+
+  return [TAYAMA_PERSONA, "", "# 长期记忆", memoryText].join("\n");
 }

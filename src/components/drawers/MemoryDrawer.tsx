@@ -1,14 +1,31 @@
 /**
- * [INPUT]: 依赖 stores/index 的 useMemoryStore
+ * [INPUT]: 依赖 stores/index 的 useMemoryStore、MemoryType
  * [OUTPUT]: 对外提供 MemoryDrawer 组件
- * [POS]: drawers/ 之记忆碎片抽屉，展示和管理长期记忆
+ * [POS]: drawers/ 之记忆碎片抽屉，按类型分组展示和管理长期记忆
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useMemoryStore } from "@/stores";
+import { useMemoryStore, type MemoryType } from "@/stores";
+
+const TYPE_LABELS: Record<MemoryType, string> = {
+  trait:   "性格与习惯",
+  event:   "经历与事件",
+  feeling: "情绪倾向",
+  bond:    "共同记忆",
+  general: "其他",
+};
+
+const TYPE_ORDER: MemoryType[] = ["trait", "event", "feeling", "bond", "general"];
 
 export function MemoryDrawer() {
   const { fragments, removeFragment } = useMemoryStore();
+
+  const grouped = new Map<MemoryType, typeof fragments>();
+  for (const f of fragments) {
+    const list = grouped.get(f.type) ?? [];
+    list.push(f);
+    grouped.set(f.type, list);
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -25,28 +42,37 @@ export function MemoryDrawer() {
             Nothing remembered yet.
           </p>
         ) : (
-          <div className="space-y-6 pb-20">
-            {fragments.map((f) => (
-              <div
-                key={f.id}
-                className="group grid grid-cols-[80px_1fr] gap-6 border-b border-outline-variant/10 pb-6"
-              >
-                <span className="text-label-sm text-outline/50 pt-1 text-right">
-                  {new Date(f.createdAt).toLocaleDateString("zh", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-                <div className="relative">
-                  <p className="text-body-md text-on-surface-variant leading-relaxed">
-                    {f.content}
-                  </p>
-                  <button
-                    onClick={() => removeFragment(f.id)}
-                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-outline hover:text-error"
-                  >
-                    <span className="material-symbols-outlined text-sm">close</span>
-                  </button>
+          <div className="space-y-8 pb-20">
+            {TYPE_ORDER.filter((t) => grouped.has(t)).map((type) => (
+              <div key={type}>
+                <p className="text-label-sm text-outline uppercase tracking-[0.2em] mb-4">
+                  {TYPE_LABELS[type]}
+                </p>
+                <div className="space-y-4">
+                  {grouped.get(type)!.map((f) => (
+                    <div
+                      key={f.id}
+                      className="group grid grid-cols-[80px_1fr] gap-6 border-b border-outline-variant/10 pb-4"
+                    >
+                      <span className="text-label-sm text-outline/50 pt-1 text-right">
+                        {new Date(f.createdAt).toLocaleDateString("zh", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      <div className="relative">
+                        <p className="text-body-md text-on-surface-variant leading-relaxed">
+                          {f.content}
+                        </p>
+                        <button
+                          onClick={() => removeFragment(f.id)}
+                          className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-outline hover:text-error"
+                        >
+                          <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}

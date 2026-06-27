@@ -30,10 +30,13 @@ async function initDb(db: Database) {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS memories (
       id TEXT PRIMARY KEY,
+      type TEXT NOT NULL DEFAULT 'general',
       content TEXT NOT NULL,
       created_at INTEGER NOT NULL
     )
   `);
+  // 兼容旧库：补加 type 列（已存在时静默忽略）
+  await db.execute(`ALTER TABLE memories ADD COLUMN type TEXT NOT NULL DEFAULT 'general'`).catch(() => {});
   await db.execute(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -60,17 +63,34 @@ export async function getMessages(): Promise<Message[]> {
 export async function saveMemory(fragment: MemoryFragment) {
   const db = await getDb();
   await db.execute(
-    "INSERT OR REPLACE INTO memories (id, content, created_at) VALUES (?, ?, ?)",
-    [fragment.id, fragment.content, fragment.createdAt]
+    "INSERT OR REPLACE INTO memories (id, type, content, created_at) VALUES (?, ?, ?, ?)",
+    [fragment.id, fragment.type, fragment.content, fragment.createdAt]
   );
 }
 
 export async function getMemories(): Promise<MemoryFragment[]> {
   const db = await getDb();
-  const rows = await db.select<{ id: string; content: string; created_at: number }[]>(
-    "SELECT id, content, created_at FROM memories ORDER BY created_at DESC"
+  const rows = await db.select<{ id: string; type: string; content: string; created_at: number }[]>(
+    "SELECT id, type, content, created_at FROM memories ORDER BY created_at DESC"
   );
-  return rows.map((r) => ({ id: r.id, content: r.content, createdAt: r.created_at }));
+  return rows.map((r) => ({ id: r.id, type: r.type as MemoryFragment["type"], content: r.content, createdAt: r.created_at }));
+}
+
+export async function getMessageCounter(): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = ? LIMIT 1",
+    ["message_counter"]
+  );
+  return rows[0] ? parseInt(rows[0].value, 10) : 0;
+}
+
+export async function setMessageCounter(count: number) {
+  const db = await getDb();
+  await db.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    ["message_counter", String(count)]
+  );
 }
 
 export async function clearMessages() {
