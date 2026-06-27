@@ -6,15 +6,14 @@
  */
 
 import type { Message, MemoryFragment, MemoryType } from "@/stores";
-import { getMessageCounter, setMessageCounter, saveMemory } from "@/lib/db";
+import { getMessageCounter, setMessageCounter, saveMemory, clearMemories } from "@/lib/db";
 import { useMemoryStore } from "@/stores";
 
 const DISTILL_THRESHOLD = 80;
 const CONTEXT_WINDOW = 80;
-const MAX_FRAGMENTS = 20;
 
 // --------------------------------------------------------
-// 蒸馏 prompt：要求模型输出结构化 JSON
+// 蒸馏 prompt：输出完整精炼后的记忆列表，全量替换旧记忆
 // --------------------------------------------------------
 function buildDistillPrompt(
   recentMessages: Message[],
@@ -28,7 +27,7 @@ function buildDistillPrompt(
     ? existingMemories.map((m) => `[${m.type}] ${m.content}`).join("\n")
     : "暂无";
 
-  return `你是田山的记忆系统。根据以下对话，提炼出值得长期记住的信息。
+  return `你是田山的记忆系统。请结合已有记忆和最近对话，输出一份完整、精炼的最新记忆列表。
 
 已有记忆：
 ${memoryText}
@@ -36,17 +35,16 @@ ${memoryText}
 最近对话：
 ${historyText}
 
-请输出 JSON 数组，每条记忆包含 type 和 content。
-type 只能是以下四种之一：
-- trait：用户的性格、习惯、偏好
-- event：发生过的事、提到的经历
-- feeling：情绪倾向、反复出现的情绪模式
-- bond：两人之间的共同记忆、inside joke
-
-规则：
-1. 只提炼真正值得长期记住的信息，宁少勿多，最多 5 条
-2. 与已有记忆重复的不要输出
-3. 直接输出 JSON，不要有其他文字
+输出规则：
+1. 输出的是完整记忆列表，会直接替换旧记忆，不是增量
+2. 将已有记忆与新信息合并：重复的合并为一条，过时的删除，新的加入
+3. 每条记忆的 type 只能是以下四种之一：
+   - trait：用户的性格、习惯、偏好
+   - event：发生过的事、提到的经历
+   - feeling：情绪倾向、反复出现的情绪模式
+   - bond：两人之间的共同记忆、inside joke
+4. 宁精勿滥，不值得长期记住的信息直接丢弃
+5. 直接输出 JSON 数组，不要有其他文字
 
 示例输出：
 [{"type":"trait","content":"喜欢深夜聊天，习惯用反问句"},{"type":"event","content":"提到最近换了新工作，压力很大"}]`;
@@ -68,7 +66,6 @@ export async function tickAndDistill(
     return;
   }
 
-  // 归零，开始蒸馏
   await setMessageCounter(0);
 
   const recentMessages = allMessages.slice(-CONTEXT_WINDOW);
@@ -98,7 +95,6 @@ export async function tickAndDistill(
     return;
   }
 
-  // 解析 JSON
   let items: { type: string; content: string }[] = [];
   try {
     const match = raw.match(/\[[\s\S]*\]/);
@@ -109,7 +105,7 @@ export async function tickAndDistill(
 
   const validTypes = new Set<MemoryType>(["trait", "event", "feeling", "bond", "general"]);
 
-  const newFragments: MemoryFragment[] = items
+  const refined: MemoryFragment[] = items
     .filter((item) => item.content?.trim())
     .map((item) => ({
       id: crypto.randomUUID(),
@@ -118,14 +114,12 @@ export async function tickAndDistill(
       createdAt: Date.now(),
     }));
 
-  if (!newFragments.length) return;
+  if (!refined.length) return;
 
-  // 写入 store 和 DB，超过 MAX_FRAGMENTS 淘汰最旧的
-  const all = [...existingFragments, ...newFragments];
-  const trimmed = all.slice(-MAX_FRAGMENTS);
-
-  useMemoryStore.getState().setFragments(trimmed);
-  for (const f of newFragments) {
+  // 全量替换：清空旧记忆，写入精炼后的完整列表
+  await clearMemories();
+  for (const f of refined) {
     await saveMemory(f);
   }
+  useMemoryStore.getState().setFragments(refined);
 }
