@@ -28,6 +28,17 @@
 }
 
 @layer utilities {
+  .input-line {
+    @apply h-9 w-full min-w-0 rounded-none border border-outline-variant/20 bg-surface-container/70 px-3 text-label-md text-on-surface-variant outline-none transition-colors placeholder:text-outline-variant/45 focus:border-primary/45 focus:bg-surface-container;
+  }
+
+  .input-line:-webkit-autofill,
+  .input-line:-webkit-autofill:hover,
+  .input-line:-webkit-autofill:focus {
+    -webkit-text-fill-color: #e5e1e4;
+    box-shadow: 0 0 0 1000px #201f21 inset;
+  }
+
   .text-glow {
     text-shadow: 0 0 20px rgba(216, 191, 214, 0.3);
   }

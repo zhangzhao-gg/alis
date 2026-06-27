@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 stores/index 的 useSettingsStore、useChatStore、useMemoryStore；依赖 lib/db
  * [OUTPUT]: 对外提供 SettingsDrawer 组件
- * [POS]: drawers/ 之设置抽屉，管理 API Key、模型、语音、人格
+ * [POS]: drawers/ 之设置抽屉，管理 API Key、模型、语音
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -14,12 +14,30 @@ const MODELS = [
   { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
 ];
 
+type PendingClear = "messages" | "memories" | null;
+
+const CLEAR_COPY = {
+  messages: {
+    title: "清空聊天记录",
+    body: "主页对话流和 Notebook 里的聊天上下文都会被清空，并从 SQLite 删除。",
+    error: "聊天记录已从当前界面清空，但数据库删除失败。请查看控制台。",
+  },
+  memories: {
+    title: "清空长期记忆",
+    body: "长期记忆会被清空，并从 SQLite 删除。聊天记录不会被删除。",
+    error: "长期记忆已从当前界面清空，但数据库删除失败。请查看控制台。",
+  },
+};
+
 export function SettingsDrawer() {
   const [draft, setDraft] = useState<Settings>(() => {
-    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, systemPrompt } = useSettingsStore.getState();
-    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, systemPrompt };
+    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker } = useSettingsStore.getState();
+    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker };
   });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [pendingClear, setPendingClear] = useState<PendingClear>(null);
+  const [clearState, setClearState] = useState<"idle" | "clearing" | "error">("idle");
+  const [clearError, setClearError] = useState("");
   const clearChat = useChatStore((s) => s.clearMessages);
   const setFragments = useMemoryStore((s) => s.setFragments);
 
@@ -47,26 +65,46 @@ export function SettingsDrawer() {
     await persist(next);
   };
 
-  const handleClearMessages = async () => {
-    if (!confirm("清空全部聊天记录？")) return;
-    await clearMessages();
-    clearChat();
+  const requestClear = (type: Exclude<PendingClear, null>) => {
+    setClearState("idle");
+    setClearError("");
+    setPendingClear(type);
   };
 
-  const handleClearMemories = async () => {
-    if (!confirm("清空全部记忆？")) return;
-    await clearMemories();
-    setFragments([]);
+  const confirmClear = async () => {
+    if (!pendingClear) return;
+
+    setClearState("clearing");
+    const copy = CLEAR_COPY[pendingClear];
+
+    try {
+      if (pendingClear === "messages") {
+        clearChat();
+        await clearMessages();
+      } else {
+        setFragments([]);
+        await clearMemories();
+      }
+
+      setPendingClear(null);
+      setClearState("idle");
+    } catch (err) {
+      console.error(`Clear ${pendingClear} failed:`, err);
+      setClearState("error");
+      setClearError(copy.error);
+    }
   };
+
+  const clearDialog = pendingClear ? CLEAR_COPY[pendingClear] : null;
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      <div className="p-10 pb-6">
+    <div className="relative flex flex-col h-full overflow-y-auto">
+      <div className="px-8 pt-7 pb-4">
         <h2 className="text-headline-lg text-on-surface tracking-tight mb-1">Settings</h2>
-        <p className="text-label-sm text-outline italic">Configure Alice's mind.</p>
+        <p className="text-label-sm text-outline italic">Configure connections.</p>
       </div>
 
-      <div className="flex-1 px-10 space-y-10 pb-20">
+      <div className="flex-1 px-8 space-y-4 pb-8">
         {/* API Key */}
         <Field label="API Key">
           <input
@@ -83,7 +121,7 @@ export function SettingsDrawer() {
           <select
             value={draft.model}
             onChange={(e) => updateDraft({ model: e.target.value })}
-            className="input-line bg-transparent"
+            className="input-line"
           >
             {MODELS.map((m) => (
               <option key={m.value} value={m.value} className="bg-surface-container">
@@ -95,21 +133,23 @@ export function SettingsDrawer() {
 
         {/* TTS 开关 */}
         <Field label="TTS Reply">
-          <button
-            onClick={toggleTtsReply}
-            className={`w-10 h-5 rounded-full transition-colors relative ${
-              draft.voiceEnabled ? "bg-primary" : "bg-outline-variant"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 w-4 h-4 rounded-full bg-on-primary transition-transform ${
-                draft.voiceEnabled ? "translate-x-5" : "translate-x-0.5"
+          <div className="flex h-9 items-center gap-3">
+            <button
+              onClick={toggleTtsReply}
+              className={`relative h-5 w-10 rounded-full transition-colors ${
+                draft.voiceEnabled ? "bg-primary" : "bg-outline-variant"
               }`}
-            />
-          </button>
-          <span className="text-label-sm text-outline ml-3">
-            {draft.voiceEnabled ? "ON" : "OFF"}
-          </span>
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-on-primary transition-transform ${
+                  draft.voiceEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <span className="text-label-sm text-outline">
+              {draft.voiceEnabled ? "ON" : "OFF"}
+            </span>
+          </div>
         </Field>
 
         <Field label="Volcengine API Key">
@@ -122,40 +162,32 @@ export function SettingsDrawer() {
           />
         </Field>
 
-        <Field label="TTS Resource ID">
-          <input
-            type="text"
-            value={draft.ttsResourceId}
-            onChange={(e) => updateDraft({ ttsResourceId: e.target.value })}
-            placeholder="seed-tts-2.0"
-            className="input-line"
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="TTS Resource ID">
+            <input
+              type="text"
+              value={draft.ttsResourceId}
+              onChange={(e) => updateDraft({ ttsResourceId: e.target.value })}
+              placeholder="seed-icl-2.0"
+              className="input-line"
+            />
+          </Field>
 
-        <Field label="TTS Speaker">
-          <input
-            type="text"
-            value={draft.ttsSpeaker}
-            onChange={(e) => updateDraft({ ttsSpeaker: e.target.value })}
-            className="input-line"
-          />
-        </Field>
-
-        {/* 人格设定 */}
-        <Field label="Alice's Persona">
-          <textarea
-            value={draft.systemPrompt}
-            onChange={(e) => updateDraft({ systemPrompt: e.target.value })}
-            rows={5}
-            className="w-full bg-transparent border border-outline-variant/20 focus:border-primary/40 rounded p-3 text-body-md text-on-surface-variant focus:outline-none transition-colors resize-none"
-          />
-        </Field>
+          <Field label="TTS Speaker">
+            <input
+              type="text"
+              value={draft.ttsSpeaker}
+              onChange={(e) => updateDraft({ ttsSpeaker: e.target.value })}
+              className="input-line"
+            />
+          </Field>
+        </div>
 
         <div className="pt-2">
           <button
             onClick={handleSave}
             disabled={saveState === "saving"}
-            className="w-full bg-primary/90 hover:bg-primary text-on-primary transition-all py-3 text-label-md uppercase tracking-[0.15em] active:scale-[0.98] disabled:opacity-50"
+            className="w-full bg-primary/90 hover:bg-primary text-on-primary transition-all py-2.5 text-label-md uppercase tracking-[0.15em] active:scale-[0.98] disabled:opacity-50"
           >
             {saveState === "saving" ? "保存中..." : saveState === "saved" ? "已保存" : "保存设置"}
           </button>
@@ -165,22 +197,66 @@ export function SettingsDrawer() {
         </div>
 
         {/* 危险操作 */}
-        <div className="pt-4 space-y-4 border-t border-outline-variant/10">
-          <DangerButton onClick={handleClearMessages}>清空聊天记录</DangerButton>
-          <DangerButton onClick={handleClearMemories}>清空记忆</DangerButton>
+        <div className="pt-4 space-y-3 border-t border-outline-variant/10">
+          <DangerButton onClick={() => requestClear("messages")}>清空聊天记录</DangerButton>
+          <DangerButton onClick={() => requestClear("memories")}>清空长期记忆</DangerButton>
         </div>
       </div>
+
+      {clearDialog && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/55 backdrop-blur-md px-10">
+          <div className="w-full border border-error/25 bg-surface-container-low shadow-[0_24px_80px_rgba(0,0,0,0.55)] p-6">
+            <div className="flex items-start gap-4">
+              <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center border border-error/30 text-error/80">
+                <span className="material-symbols-outlined text-xl">warning</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-title-md text-on-surface tracking-wide">
+                  {clearDialog.title}
+                </h3>
+                <p className="mt-3 text-body-sm leading-relaxed text-on-surface-variant">
+                  {clearDialog.body}
+                </p>
+                {clearError && (
+                  <p className="mt-3 text-label-sm text-error/80">{clearError}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setPendingClear(null);
+                  setClearState("idle");
+                  setClearError("");
+                }}
+                disabled={clearState === "clearing"}
+                className="border border-outline-variant/20 py-3 text-label-md uppercase tracking-[0.15em] text-on-surface-variant transition-colors hover:border-outline-variant/50 hover:text-on-surface disabled:opacity-40"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => void confirmClear()}
+                disabled={clearState === "clearing"}
+                className="border border-error/40 bg-error/10 py-3 text-label-md uppercase tracking-[0.15em] text-error transition-colors hover:bg-error/15 disabled:opacity-40"
+              >
+                {clearState === "clearing" ? "清空中..." : "确认清空"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <label className="text-label-md text-on-surface-variant uppercase tracking-widest text-[11px]">
+    <div className="space-y-1.5">
+      <label className="text-label-md text-on-surface-variant uppercase tracking-widest text-[10px]">
         {label}
       </label>
-      <div className="flex items-center">{children}</div>
+      <div className="flex min-w-0 items-center">{children}</div>
     </div>
   );
 }
@@ -189,7 +265,7 @@ function DangerButton({ onClick, children }: { onClick: () => void; children: Re
   return (
     <button
       onClick={onClick}
-      className="w-full border border-error/20 text-error/60 hover:border-error/50 hover:text-error transition-all py-3 text-label-md uppercase tracking-[0.15em] active:scale-[0.98]"
+      className="w-full border border-error/20 text-error/60 hover:border-error/50 hover:text-error transition-all py-2.5 text-label-md uppercase tracking-[0.15em] active:scale-[0.98]"
     >
       {children}
     </button>

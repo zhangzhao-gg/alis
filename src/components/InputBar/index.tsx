@@ -1,15 +1,17 @@
 /**
- * [INPUT]: 依赖 stores/index 的 useChatStore、useSettingsStore；依赖 lib/ai、lib/asr、lib/tts、lib/recorder
+ * [INPUT]: 依赖 stores/index 的 useChatStore、useSettingsStore、useMemoryStore；依赖 lib/ai、lib/asr、lib/tts、lib/recorder
  * [OUTPUT]: 对外提供 InputBar 组件
  * [POS]: 底部输入区，处理文字发送和流式 AI 回复
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useChatStore, useSettingsStore } from "@/stores";
+import { useChatStore, useMemoryStore, useSettingsStore, useUIStore } from "@/stores";
 import { streamChat } from "@/lib/ai";
 import { saveMessage } from "@/lib/db";
 import { playTts } from "@/lib/tts";
+import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt } from "@/lib/persona";
+import { getDisplayText, getSpokenText } from "@/lib/messageText";
 import {
   finishAsrStream,
   listenAsrTranscript,
@@ -18,9 +20,11 @@ import {
 } from "@/lib/asr";
 import { RealtimePcmRecorder } from "@/lib/recorder";
 
+type InputSource = "text" | "voice";
+
 export function InputBar() {
   const [text, setText] = useState("");
-  const [asrHint, setAsrHint] = useState("");
+  const [, setAsrHint] = useState("");
   const { setStatus } = useChatStore();
   const settings = useSettingsStore();
   const recorderRef = useRef<RealtimePcmRecorder | null>(null);
@@ -53,7 +57,7 @@ export function InputBar() {
     };
   }, []);
 
-  const speakReply = useCallback(async (reply: string) => {
+  const speakReply = useCallback(async (reply: string, onPlaybackStart?: () => void) => {
     const { voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker } = useSettingsStore.getState();
     if (!reply.trim() || !voiceEnabled) return;
     if (!ttsApiKey || !ttsResourceId) {
@@ -62,14 +66,21 @@ export function InputBar() {
     }
     setStatus("speaking");
     setAsrHint("Speaking...");
-    await playTts({ apiKey: ttsApiKey, resourceId: ttsResourceId, speaker: ttsSpeaker, text: reply });
+    await playTts({
+      apiKey: ttsApiKey,
+      resourceId: ttsResourceId,
+      speaker: ttsSpeaker,
+      text: reply,
+      onStart: onPlaybackStart,
+    });
     setAsrHint("");
   }, [setStatus]);
 
-  const sendContent = useCallback(async (rawContent: string) => {
+  const sendContent = useCallback(async (rawContent: string, source: InputSource = "text") => {
     const content = rawContent.trim();
     const currentStatus = useChatStore.getState().status;
     if (!content || !settings.apiKey || currentStatus !== "idle") return;
+    const delayReplyDisplay = source === "voice" && settings.voiceEnabled && !!settings.ttsApiKey && !!settings.ttsResourceId;
 
     setAsrHint("");
 
@@ -88,6 +99,7 @@ export function InputBar() {
     const aliceId = crypto.randomUUID();
     const aliceTs = Date.now();
     const history = useChatStore.getState().messages;
+    const memories = useMemoryStore.getState().fragments;
 
     useChatStore.setState((s) => ({
       messages: [
@@ -100,9 +112,14 @@ export function InputBar() {
       messages: history,
       apiKey: settings.apiKey,
       model: settings.model,
-      systemPrompt: settings.systemPrompt,
+      systemPrompts: [
+        TAVERN_SYSTEM_PROMPT,
+        buildTayamaContextPrompt(memories),
+      ],
       onChunk: (chunk) => {
         accumulated += chunk;
+        if (delayReplyDisplay) return;
+
         useChatStore.setState((s) => ({
           messages: s.messages.map((m) =>
             m.id === aliceId ? { ...m, text: accumulated } : m
@@ -118,10 +135,17 @@ export function InputBar() {
         };
         await saveMessage(finalMsg);
         try {
-          await speakReply(accumulated);
+          await speakReply(
+            getSpokenText(accumulated),
+            delayReplyDisplay ? () => revealReplyText(aliceId, accumulated) : undefined
+          );
         } catch (err) {
           console.error("TTS error:", err);
           setAsrHint(errorMessage(err, "TTS failed"));
+          setAliceMessageText(aliceId, accumulated);
+        }
+        if (delayReplyDisplay && !useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
+          setAliceMessageText(aliceId, accumulated);
         }
         setStatus("idle");
       },
@@ -135,14 +159,14 @@ export function InputBar() {
         }));
       },
     });
-  }, [settings.apiKey, settings.model, settings.systemPrompt, setStatus, speakReply]);
+  }, [settings.apiKey, settings.model, settings.ttsApiKey, settings.ttsResourceId, settings.voiceEnabled, setStatus, speakReply]);
 
   const send = useCallback(async () => {
     const content = text.trim();
     if (!content) return;
 
     setText("");
-    await sendContent(content);
+    await sendContent(content, "text");
   }, [text, sendContent]);
 
   const startRecording = useCallback(async () => {
@@ -212,7 +236,7 @@ export function InputBar() {
 
       setText("");
       setStatus("idle");
-      await sendContent(content);
+      await sendContent(content, "voice");
     } catch (err) {
       console.error("ASR error:", err);
       setAsrHint(errorMessage(err, "ASR failed"));
@@ -243,11 +267,6 @@ export function InputBar() {
   return (
     <section className="fixed bottom-0 left-16 right-0 pb-16 flex justify-center px-6 z-30">
       <div className="w-full max-w-2xl relative group">
-        {asrHint && (
-          <div className="absolute -top-8 left-0 text-label-sm text-outline tracking-widest uppercase text-[10px]">
-            {asrHint}
-          </div>
-        )}
         <input
           type="text"
           value={text}
@@ -290,4 +309,71 @@ export function InputBar() {
 
 function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error && err.message ? err.message : String(err || fallback);
+}
+
+function setAliceMessageText(id: string, text: string) {
+  useChatStore.setState((s) => ({
+    messages: s.messages.map((m) => (m.id === id ? { ...m, text } : m)),
+  }));
+}
+
+async function revealReplyText(id: string, rawText: string) {
+  const language = useUIStore.getState().displayLanguage;
+  const displayText = getDisplayText(rawText, language);
+  let tempo = createTypingTempo();
+
+  if (!displayText) {
+    setAliceMessageText(id, rawText);
+    return;
+  }
+
+  await revealPlainText(id, displayText, tempo);
+
+  setAliceMessageText(id, rawText);
+}
+
+async function revealPlainText(id: string, text: string, initialTempo: TypingTempo) {
+  let tempo = initialTempo;
+  for (let i = 1; i <= text.length; i += 1) {
+    setAliceMessageText(id, text.slice(0, i));
+    await wait(tempo.delay);
+    tempo = nextTypingTempo(tempo);
+  }
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+interface TypingTempo {
+  delay: number;
+  target: number;
+}
+
+function createTypingTempo(): TypingTempo {
+  const delay = randomInt(170, 260);
+  return {
+    delay,
+    target: randomInt(130, 330),
+  };
+}
+
+function nextTypingTempo({ delay, target }: TypingTempo): TypingTempo {
+  const distance = target - delay;
+  const drift = clamp(distance * 0.22 + randomInt(-5, 5), -20, 20);
+  const nextDelay = clamp(delay + drift, 130, 330);
+  const nextTarget = Math.abs(target - nextDelay) < 12 ? randomInt(130, 330) : target;
+
+  return {
+    delay: nextDelay,
+    target: nextTarget,
+  };
+}
+
+function randomInt(min: number, max: number) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }

@@ -12,9 +12,10 @@ interface PlayTtsOptions {
   resourceId: string;
   speaker: string;
   text: string;
+  onStart?: () => void;
 }
 
-export async function playTts({ apiKey, resourceId, speaker, text }: PlayTtsOptions) {
+export async function playTts({ apiKey, resourceId, speaker, text, onStart }: PlayTtsOptions) {
   const audioBase64 = await invoke<string>("synthesize_tts", {
     request: { apiKey, resourceId, speaker, text },
   });
@@ -26,7 +27,10 @@ export async function playTts({ apiKey, resourceId, speaker, text }: PlayTtsOpti
     await new Promise<void>((resolve, reject) => {
       audio.onended = () => resolve();
       audio.onerror = () => reject(new Error(audio.error?.message || "Audio playback failed"));
-      audio.play().catch(reject);
+      audio
+        .play()
+        .then(() => onStart?.())
+        .catch(reject);
     });
   } finally {
     URL.revokeObjectURL(url);

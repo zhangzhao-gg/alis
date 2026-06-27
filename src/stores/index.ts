@@ -7,6 +7,7 @@ import { create } from "zustand";
 export type Sender = "user" | "alice";
 export type DrawerType = "memory" | "notebook" | "settings" | null;
 export type AliceStatus = "idle" | "thinking" | "speaking" | "recording";
+export type DisplayLanguage = "zh" | "ja";
 
 export interface Message {
   id: string;
@@ -53,15 +54,19 @@ export const useChatStore = create<ChatState>((set) => ({
 
 interface UIState {
   activeDrawer: DrawerType;
+  displayLanguage: DisplayLanguage;
   setDrawer: (d: DrawerType) => void;
   toggleDrawer: (d: Exclude<DrawerType, null>) => void;
+  setDisplayLanguage: (language: DisplayLanguage) => void;
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
   activeDrawer: null,
+  displayLanguage: "zh",
   setDrawer: (activeDrawer) => set({ activeDrawer }),
   toggleDrawer: (d) =>
     set({ activeDrawer: get().activeDrawer === d ? null : d }),
+  setDisplayLanguage: (displayLanguage) => set({ displayLanguage }),
 }));
 
 // ============================================================
@@ -102,11 +107,19 @@ export interface Settings {
   ttsApiKey: string;
   ttsResourceId: string;
   ttsSpeaker: string;
-  systemPrompt: string;
 }
 
 interface SettingsState extends Settings {
   update: (patch: Partial<Settings>) => void;
+}
+
+const DEFAULT_TTS_RESOURCE_ID = "seed-icl-2.0";
+const LEGACY_TTS_RESOURCE_ID = "seed-tts-2.0";
+
+function normalizeTtsResourceId(resourceId: string | undefined, fallback: string) {
+  if (resourceId === undefined) return fallback;
+  if (!resourceId || resourceId === LEGACY_TTS_RESOURCE_ID) return DEFAULT_TTS_RESOURCE_ID;
+  return resourceId;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -114,9 +127,16 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   model: "deepseek-chat",
   voiceEnabled: false,
   ttsApiKey: "",
-  ttsResourceId: "seed-tts-2.0",
+  ttsResourceId: DEFAULT_TTS_RESOURCE_ID,
   ttsSpeaker: "zh_female_vv_uranus_bigtts",
-  systemPrompt:
-    "你是阿丽丝，一个住在电脑里的虚拟朋友。外表阴郁高冷，内心温柔克制。回复简短自然，像深夜里陪人说话，不说教不卖萌，话不多但愿意听。",
-  update: (patch) => set((state) => ({ ...state, ...patch })),
+  update: (patch) =>
+    set((state) => ({
+      ...state,
+      apiKey: patch.apiKey ?? state.apiKey,
+      model: patch.model ?? state.model,
+      voiceEnabled: patch.voiceEnabled ?? state.voiceEnabled,
+      ttsApiKey: patch.ttsApiKey ?? state.ttsApiKey,
+      ttsResourceId: normalizeTtsResourceId(patch.ttsResourceId, state.ttsResourceId),
+      ttsSpeaker: patch.ttsSpeaker ?? state.ttsSpeaker,
+    })),
 }));

@@ -21,16 +21,6 @@ export function Avatar() {
 
   return (
     <section className="absolute top-[12%] flex flex-col items-center transition-all duration-1000">
-      {/* 状态指示 */}
-      {isActive && (
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          <span className="text-label-sm text-on-surface-variant tracking-widest uppercase text-[10px]">
-            {statusLabel[status]}
-          </span>
-        </div>
-      )}
-
       <div className="relative group">
         {/* 外层光晕 */}
         <div
@@ -61,6 +51,18 @@ export function Avatar() {
         {status === "recording" && (
           <div className="absolute -inset-3 rounded-full border-2 border-primary/40 animate-ping" />
         )}
+
+        {/* 状态指示 */}
+        <div
+          className={`absolute left-1/2 top-full mt-6 flex -translate-x-1/2 items-center gap-2 transition-all duration-500 ${
+            isActive ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
+          }`}
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-label-sm text-on-surface-variant tracking-widest uppercase text-[10px]">
+            {statusLabel[status]}
+          </span>
+        </div>
       </div>
     </section>
   );

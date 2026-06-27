@@ -29,6 +29,12 @@ src-tauri/Cargo.toml        - tauri + tauri-plugin-sql(sqlite) + serde
 - **抽屉**：DrawerPanel 单容器 + activeDrawer 状态驱动，零路由跳转
 - **语音**：TTS 使用 Tauri 后端请求火山 HTTP 接口，ASR 使用前端录制 16kHz WAV + Tauri 后端火山 WebSocket
 
+## 桌面应用 UI 约束
+- 这是 Tauri 桌面应用，最终目标是 macOS 桌面端，不要依赖浏览器原生弹窗交互。
+- 禁止在业务 UI 中使用 `window.confirm` / `confirm` / `window.alert` / `alert` 作为确认或错误提示。
+- 需要确认危险操作时，使用应用内 modal/dialog 组件，确保在桌面 WebView 中可见、可控，并符合现有视觉风格。
+- 需要提示失败或状态时，优先使用应用内状态文本、toast、modal 或抽屉内错误信息；同时可保留 `console.error` 便于调试。
+
 ## 开发
 ```
 npm run tauri dev    # 启动开发模式

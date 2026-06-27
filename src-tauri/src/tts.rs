@@ -29,7 +29,8 @@ pub async fn synthesize_tts(request: TtsRequest) -> Result<String, String> {
             "speaker": request.speaker,
             "audio_params": {
                 "format": "mp3",
-                "sample_rate": 24000
+                "sample_rate": 24000,
+                "speech_rate": -10
             }
         }
     });

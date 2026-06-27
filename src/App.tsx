@@ -11,7 +11,7 @@ import { Avatar } from "@/components/Avatar";
 import { LyricStream } from "@/components/LyricStream";
 import { InputBar } from "@/components/InputBar";
 import { DrawerPanel } from "@/components/drawers/DrawerPanel";
-import { useChatStore, useMemoryStore, useSettingsStore } from "@/stores";
+import { useChatStore, useMemoryStore, useSettingsStore, useUIStore, type DisplayLanguage } from "@/stores";
 import { getMessages, getMemories, getSettings } from "@/lib/db";
 
 export default function App() {
@@ -71,6 +71,8 @@ export default function App() {
 
 function TopBar() {
   const status = useChatStore((s) => s.status);
+  const displayLanguage = useUIStore((s) => s.displayLanguage);
+  const setDisplayLanguage = useUIStore((s) => s.setDisplayLanguage);
 
   return (
     <header className="fixed top-0 left-16 right-0 z-40 flex justify-between items-center px-16 py-3 backdrop-blur-md bg-background/20">
@@ -84,8 +86,28 @@ function TopBar() {
           </>
         )}
       </div>
-      <div className="text-label-sm text-outline uppercase tracking-[0.2em]">
-        {new Date().toLocaleString("en", { weekday: "short", hour: "2-digit", minute: "2-digit" })}
+      <div className="flex items-center gap-5">
+        <div className="flex border border-outline-variant/20">
+          {[
+            ["zh", "中文"],
+            ["ja", "日本語"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setDisplayLanguage(value as DisplayLanguage)}
+              className={`px-3 py-1 text-[10px] uppercase tracking-[0.16em] transition-colors ${
+                displayLanguage === value
+                  ? "bg-primary/85 text-on-primary"
+                  : "text-outline hover:text-on-surface"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="text-label-sm text-outline uppercase tracking-[0.2em]">
+          {new Date().toLocaleString("en", { weekday: "short", hour: "2-digit", minute: "2-digit" })}
+        </div>
       </div>
     </header>
   );

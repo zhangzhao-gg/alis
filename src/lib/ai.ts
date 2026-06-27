@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 stores/index 的 Settings、Message 类型
+ * [INPUT]: 依赖 stores/index 的 Message 类型
  * [OUTPUT]: 对外提供 streamChat 函数
  * [POS]: lib 层的 AI 接入，封装 DeepSeek Responses API streaming
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -11,7 +11,7 @@ interface StreamChatOptions {
   messages: Message[];
   apiKey: string;
   model: string;
-  systemPrompt: string;
+  systemPrompts: string[];
   onChunk: (chunk: string) => void;
   onDone: () => void | Promise<void>;
   onError: (err: Error) => void;
@@ -21,7 +21,7 @@ export async function streamChat({
   messages,
   apiKey,
   model,
-  systemPrompt,
+  systemPrompts,
   onChunk,
   onDone,
   onError,
@@ -30,7 +30,10 @@ export async function streamChat({
     model,
     stream: true,
     messages: [
-      { role: "system", content: systemPrompt },
+      ...systemPrompts
+        .map((content) => content.trim())
+        .filter(Boolean)
+        .map((content) => ({ role: "system", content })),
       ...messages.map((m) => ({
         role: m.sender === "user" ? "user" : "assistant",
         content: m.text,
