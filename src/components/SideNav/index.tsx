@@ -15,13 +15,16 @@ const tabs: { id: Exclude<DrawerType, null>; icon: string; label: string }[] = [
 ];
 
 export function SideNav() {
-  const { activeDrawer, toggleDrawer } = useUIStore();
+  const { activeDrawer, toggleDrawer, setDrawer } = useUIStore();
 
   return (
     <nav className="fixed left-0 top-0 h-full w-16 z-[70] flex flex-col items-center py-16 bg-surface-container-low/20 backdrop-blur-xl border-r border-outline-variant/10">
-      <div className="text-on-surface tracking-widest [writing-mode:vertical-lr] rotate-180 mb-12 text-sm font-medium">
+      <button
+        onClick={() => setDrawer(null)}
+        className="text-on-surface-variant hover:text-on-surface tracking-widest [writing-mode:vertical-lr] rotate-180 mb-12 text-sm font-medium transition-colors duration-300 cursor-pointer select-none"
+      >
         ALICE
-      </div>
+      </button>
 
       <div className="flex flex-col space-y-12 items-center flex-1">
         {tabs.map((tab) => {
