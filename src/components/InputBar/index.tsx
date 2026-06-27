@@ -13,6 +13,7 @@ import { tickAndDistill } from "@/lib/memory";
 import { playTts, type TtsHandle } from "@/lib/tts";
 import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt } from "@/lib/persona";
 import { getDisplayText, getSpokenText, getEmotion } from "@/lib/messageText";
+import { debugError, debugLog } from "@/lib/debugLog";
 import {
   finishAsrStream,
   listenAsrTranscript,
@@ -39,10 +40,10 @@ export function InputBar() {
   // VAD 触发但 AI 尚未 idle 时的待发文本
   const pendingVoiceSendRef = useRef<string | null>(null);
 
-  // status 回 idle 时冲刷待发语音文本
+  // status 回到可接收语音时冲刷待发语音文本
   const status = useChatStore((s) => s.status);
   useEffect(() => {
-    if (status !== "idle") return;
+    if (status !== "idle" && status !== "recording") return;
     const pending = pendingVoiceSendRef.current;
     if (!pending) return;
     pendingVoiceSendRef.current = null;
@@ -68,27 +69,121 @@ export function InputBar() {
     return () => { disposed = true; unlisten?.(); };
   }, []);
 
-  const speakReply = useCallback(async (reply: string, onPlaybackStart?: () => void) => {
+  // 启动一个新 ASR session
+  const rotateAsrSession = useCallback(async (apiKey: string) => {
+    const sessionId = await startAsrStream({ apiKey });
+    asrSessionRef.current = sessionId;
+    audioPushRef.current = Promise.resolve();
+    return sessionId;
+  }, []);
+
+  const startVoiceCapture = useCallback(async (apiKey: string) => {
+    if (recorderRef.current) return;
+
+    debugLog("[ASR] capture starting");
+    const recorder = new RealtimePcmRecorder();
+    recorderRef.current = recorder;
+
+    await recorder.start((chunk) => {
+      const sid = asrSessionRef.current;
+      if (!sid || chunk.byteLength === 0) return;
+      audioPushRef.current = audioPushRef.current
+        .then(() => pushAsrAudio({ sessionId: sid, audio: chunk }))
+        .catch((err) => {
+          debugError("[ASR] push error", errorMessage(err, "ASR push failed"));
+        });
+    });
+
+    await rotateAsrSession(apiKey);
+    debugLog("[ASR] capture started");
+  }, [rotateAsrSession]);
+
+  const pauseVoiceCapture = useCallback(async () => {
+    const recorder = recorderRef.current;
+    const sessionId = asrSessionRef.current;
+    const pendingAudioPush = audioPushRef.current;
+    if (!recorder && !sessionId) return;
+
+    debugLog("[ASR] capture pausing before TTS");
+    recorderRef.current = null;
+    asrSessionRef.current = null;
+    audioPushRef.current = Promise.resolve();
+
+    try {
+      let tail: Uint8Array = new Uint8Array();
+      if (recorder) {
+        const flushed = recorder.flushPending();
+        const stopped = await recorder.stop();
+        tail = concatBytes(flushed, stopped);
+      }
+      await pendingAudioPush.catch(() => {});
+      if (sessionId) {
+        await finishAsrStream({ sessionId, audio: tail }).catch(() => {});
+      }
+      debugLog("[ASR] capture paused");
+    } catch (err) {
+      debugError("[ASR] pause error", errorMessage(err, "ASR pause failed"));
+    }
+  }, []);
+
+  const speakReply = useCallback(async (reply: string, onPlaybackStart?: () => void, force = false) => {
     const { voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker } = useSettingsStore.getState();
-    if (!reply.trim() || !voiceEnabled) return;
+    const spokenText = reply.trim();
+    if (!spokenText) {
+      debugLog("[TTS] skipped: empty spoken text");
+      return;
+    }
+    if (!voiceEnabled && !force) {
+      debugLog("[TTS] skipped: voice reply disabled");
+      return;
+    }
     if (!ttsApiKey || !ttsResourceId) {
       setAsrHint(!ttsApiKey ? "Missing Volcengine API key" : "Missing TTS resource ID");
+      debugLog("[TTS] skipped: missing config", { hasApiKey: !!ttsApiKey, hasResourceId: !!ttsResourceId });
       return;
     }
     setStatus("speaking");
+    setAsrHint("Preparing voice...");
+
+    const shouldPauseCapture = force && voiceModeRef.current && !!recorderRef.current;
+    if (shouldPauseCapture) {
+      await pauseVoiceCapture();
+      debugLog("[TTS] wait after ASR pause", { ms: 1000 });
+      await wait(1000);
+    }
+
     setAsrHint("Speaking...");
+    debugLog("[TTS] request playback", {
+      chars: spokenText.length,
+      resourceId: ttsResourceId,
+      speaker: ttsSpeaker,
+      forcedByVoiceMode: force,
+    });
     const handle = playTts({
       apiKey: ttsApiKey,
       resourceId: ttsResourceId,
       speaker: ttsSpeaker,
-      text: reply,
+      text: spokenText,
       onStart: onPlaybackStart,
     });
     ttsHandleRef.current = handle;
-    await handle.promise;
-    ttsHandleRef.current = null;
-    setAsrHint("");
-  }, [setStatus]);
+    try {
+      await handle.promise;
+      debugLog("[TTS] playback finished");
+    } finally {
+      ttsHandleRef.current = null;
+      setAsrHint("");
+
+      if (shouldPauseCapture && voiceModeRef.current && !recorderRef.current) {
+        try {
+          await startVoiceCapture(ttsApiKey);
+        } catch (err) {
+          debugError("[ASR] resume error", errorMessage(err, "ASR resume failed"));
+          voiceModeRef.current = false;
+        }
+      }
+    }
+  }, [pauseVoiceCapture, setStatus, startVoiceCapture]);
 
   // sendContent 存 ref 供 status effect 调用，避免闭包失效
   const sendContentRef = useRef<(rawContent: string, source?: InputSource) => Promise<void>>(async () => {});
@@ -96,17 +191,25 @@ export function InputBar() {
   const sendContent = useCallback(async (rawContent: string, source: InputSource = "text") => {
     const content = rawContent.trim();
     const currentStatus = useChatStore.getState().status;
+    const isVoiceRecording = source === "voice" && currentStatus === "recording";
+    const isVoiceThinking = source === "voice" && currentStatus === "thinking";
+    const isVoiceSpeaking = source === "voice" && currentStatus === "speaking";
 
-    // 语音模式下若 AI 还在处理，先排队，等 idle 后再发
-    if (source === "voice" && currentStatus !== "idle") {
+    // 语音模式下 AI 还在思考时先排队；播放时忽略 ASR，避免 TTS 被自己打断。
+    if (isVoiceThinking) {
+      if (!content) return;
       pendingVoiceSendRef.current = content;
-      // 如果 TTS 正在播放则打断
-      ttsHandleRef.current?.cancel();
       return;
     }
 
-    if (!content || !settings.apiKey || currentStatus !== "idle") return;
-    const delayReplyDisplay = source === "voice" && settings.voiceEnabled && !!settings.ttsApiKey && !!settings.ttsResourceId;
+    if (isVoiceSpeaking) {
+      debugLog("[VOICE] ignored ASR while TTS speaking", content);
+      return;
+    }
+
+    if (!content || !settings.apiKey || (currentStatus !== "idle" && !isVoiceRecording)) return;
+    const shouldSpeakReply = source === "voice" || settings.voiceEnabled;
+    const delayReplyDisplay = source === "voice" && shouldSpeakReply && !!settings.ttsApiKey && !!settings.ttsResourceId;
 
     setAsrHint("");
 
@@ -172,21 +275,22 @@ export function InputBar() {
         try {
           await speakReply(
             getSpokenText(accumulated),
-            delayReplyDisplay ? () => revealReplyText(aliceId, accumulated) : undefined
+            delayReplyDisplay ? () => revealReplyText(aliceId, accumulated) : undefined,
+            source === "voice"
           );
         } catch (err) {
-          console.error("TTS error:", err);
+          debugError("[TTS] error", errorMessage(err, "TTS failed"));
           setAsrHint(errorMessage(err, "TTS failed"));
           setAliceMessageText(aliceId, accumulated);
         }
         if (delayReplyDisplay && !useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
           setAliceMessageText(aliceId, accumulated);
         }
-        setStatus("idle");
+        setStatus(voiceModeRef.current ? "recording" : "idle");
       },
       onError: (err) => {
-        setStatus("idle");
-        console.error("AI error:", err);
+        setStatus(voiceModeRef.current ? "recording" : "idle");
+        debugError("[AI] error", err.message);
         useChatStore.setState((s) => ({
           messages: s.messages.map((m) =>
             m.id === aliceId ? { ...m, text: "..." } : m
@@ -206,14 +310,6 @@ export function InputBar() {
     await sendContent(content, "text");
   }, [text, sendContent]);
 
-  // 启动一个新 ASR session，绑到当前 recorder 的音频流
-  const rotateAsrSession = useCallback(async (apiKey: string) => {
-    const sessionId = await startAsrStream({ apiKey });
-    asrSessionRef.current = sessionId;
-    audioPushRef.current = Promise.resolve();
-    return sessionId;
-  }, []);
-
   const startVoiceMode = useCallback(async () => {
     if (!settings.ttsApiKey) {
       setAsrHint("Missing Volcengine API key");
@@ -222,29 +318,18 @@ export function InputBar() {
     try {
       setAsrHint("Connecting...");
       voiceModeRef.current = true;
-      const recorder = new RealtimePcmRecorder();
-      recorderRef.current = recorder;
-
-      // recorder 启动后再建 session，避免音频在 session 就绪前丢失
-      await recorder.start((chunk) => {
-        const sid = asrSessionRef.current;
-        if (!sid || chunk.byteLength === 0) return;
-        audioPushRef.current = audioPushRef.current
-          .then(() => pushAsrAudio({ sessionId: sid, audio: chunk }))
-          .catch((err) => console.error("ASR push error:", err));
-      });
-
-      await rotateAsrSession(settings.ttsApiKey);
+      await startVoiceCapture(settings.ttsApiKey);
       setStatus("recording");
       setAsrHint("Listening...");
     } catch (err) {
       console.error("ASR start error:", err);
+      debugError("[ASR] start error", errorMessage(err, "ASR start failed"));
       setAsrHint(errorMessage(err, "ASR start failed"));
       voiceModeRef.current = false;
       recorderRef.current = null;
       setStatus("idle");
     }
-  }, [settings.ttsApiKey, setStatus, rotateAsrSession]);
+  }, [settings.ttsApiKey, setStatus, startVoiceCapture]);
 
   const stopVoiceMode = useCallback(async () => {
     voiceModeRef.current = false;
@@ -267,6 +352,7 @@ export function InputBar() {
         await finishAsrStream({ sessionId, audio: tail }).catch(() => {});
       } catch (err) {
         console.error("ASR stop error:", err);
+        debugError("[ASR] stop error", errorMessage(err, "ASR stop failed"));
       }
     }
   }, [setStatus]);
@@ -280,24 +366,31 @@ export function InputBar() {
       if (disposed || sessionId !== asrSessionRef.current) return;
       if (!voiceModeRef.current || !recorderRef.current) return;
 
+      if (useChatStore.getState().status === "speaking") {
+        debugLog("[VOICE] ignored VAD while TTS speaking", vadText.trim());
+        return;
+      }
+
       const apiKey = useSettingsStore.getState().ttsApiKey;
       if (!apiKey) return;
 
       const oldSessionId = sessionId;
+      const pendingAudioPush = audioPushRef.current;
       // 抢救尾音后立即建新 session，旧 session 后台关闭
       const tail = recorderRef.current.flushPending();
       asrSessionRef.current = null;
 
       rotateAsrSession(apiKey)
-        .then(() => {
+        .then(async () => {
+          await pendingAudioPush.catch(() => {});
           // 旧 session 静默收尾（只为关 WebSocket，不取文字）
-          finishAsrStream({ sessionId: oldSessionId, audio: tail }).catch(() => {});
+          await finishAsrStream({ sessionId: oldSessionId, audio: tail }).catch(() => {});
         })
         .catch((err) => console.error("ASR rotate error:", err));
 
       const content = vadText.trim();
       if (content) {
-        console.log("[VAD] sending:", content);
+        debugLog("[VAD] sending", content);
         void sendContentRef.current(content, "voice");
       }
     })
@@ -452,4 +545,11 @@ function randomInt(min: number, max: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
+  const result = new Uint8Array(a.byteLength + b.byteLength);
+  result.set(a, 0);
+  result.set(b, a.byteLength);
+  return result;
 }

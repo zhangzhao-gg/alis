@@ -10,6 +10,7 @@ import { SideNav } from "@/components/SideNav";
 import { Avatar } from "@/components/Avatar";
 import { LyricStream } from "@/components/LyricStream";
 import { InputBar } from "@/components/InputBar";
+import { DebugOverlay } from "@/components/DebugOverlay";
 import { DrawerPanel } from "@/components/drawers/DrawerPanel";
 import { useChatStore, useMemoryStore, useSettingsStore, useUIStore, type DisplayLanguage } from "@/stores";
 import { getMessages, getMemories, getSettings } from "@/lib/db";
@@ -59,6 +60,7 @@ export default function App() {
 
       {/* 底部输入区 */}
       <InputBar />
+      <DebugOverlay />
 
       {/* 页脚 */}
       <footer className="fixed bottom-0 right-0 px-16 py-2 pointer-events-none z-50">

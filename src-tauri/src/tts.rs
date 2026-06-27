@@ -23,6 +23,13 @@ struct TtsResponse {
 
 #[tauri::command]
 pub async fn synthesize_tts(request: TtsRequest) -> Result<String, String> {
+    println!(
+        "[TTS] synthesize request: chars={}, resource_id={}, speaker={}",
+        request.text.chars().count(),
+        request.resource_id,
+        request.speaker
+    );
+
     let payload = json!({
         "req_params": {
             "text": request.text,
@@ -46,6 +53,7 @@ pub async fn synthesize_tts(request: TtsRequest) -> Result<String, String> {
         .await
         .map_err(|err| format!("TTS request failed: {err}"))?;
 
+    println!("[TTS] response status: {}", response.status());
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
@@ -79,6 +87,7 @@ pub async fn synthesize_tts(request: TtsRequest) -> Result<String, String> {
         return Err("TTS API returned empty audio".to_string());
     }
 
+    println!("[TTS] decoded audio bytes: {}", audio.len());
     Ok(general_purpose::STANDARD.encode(audio))
 }
 
