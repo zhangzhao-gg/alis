@@ -42,6 +42,13 @@ export class RealtimePcmRecorder {
     this.processor.connect(this.audioContext.destination);
   }
 
+  // 取出当前待发样本并清空，但不停麦克风 —— 用于 VAD session 轮换时抢救尾音
+  flushPending(): Uint8Array {
+    const chunk = encodePcm(this.pendingSamples);
+    this.pendingSamples = [];
+    return chunk;
+  }
+
   async stop(): Promise<Uint8Array> {
     if (!this.audioContext) {
       throw new Error("Recorder is not running");
