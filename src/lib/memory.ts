@@ -11,6 +11,7 @@ import { useMemoryStore } from "@/stores";
 
 const DISTILL_THRESHOLD = 80;
 const CONTEXT_WINDOW = 80;
+const MAX_RETRIES = 3;
 
 // --------------------------------------------------------
 // 蒸馏 prompt：输出完整精炼后的记忆列表，全量替换旧记忆
@@ -51,7 +52,63 @@ ${historyText}
 }
 
 // --------------------------------------------------------
-// 主函数：计数 +1，满阈值则蒸馏
+// 单次蒸馏调用，返回解析好的记忆列表，失败返回 null
+// --------------------------------------------------------
+async function distillOnce(
+  recentMessages: Message[],
+  existingFragments: MemoryFragment[],
+  apiKey: string,
+  model: string
+): Promise<MemoryFragment[] | null> {
+  let raw = "";
+  try {
+    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [
+          { role: "user", content: buildDistillPrompt(recentMessages, existingFragments) },
+        ],
+      }),
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    raw = json.choices?.[0]?.message?.content ?? "";
+  } catch {
+    return null;
+  }
+
+  try {
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) return null;
+
+    const items: { type: string; content: string }[] = JSON.parse(match[0]);
+    if (!Array.isArray(items) || !items.length) return null;
+
+    const validTypes = new Set<MemoryType>(["trait", "event", "feeling", "bond", "general"]);
+    const refined: MemoryFragment[] = items
+      .filter((item) => item.content?.trim())
+      .map((item) => ({
+        id: crypto.randomUUID(),
+        type: validTypes.has(item.type as MemoryType) ? (item.type as MemoryType) : "general",
+        content: item.content.trim(),
+        createdAt: Date.now(),
+      }));
+
+    return refined.length ? refined : null;
+  } catch {
+    return null;
+  }
+}
+
+// --------------------------------------------------------
+// 主函数：计数 +1，满阈值则蒸馏（最多重试 3 次）
 // --------------------------------------------------------
 export async function tickAndDistill(
   allMessages: Message[],
@@ -71,52 +128,15 @@ export async function tickAndDistill(
   const recentMessages = allMessages.slice(-CONTEXT_WINDOW);
   const existingFragments = useMemoryStore.getState().fragments;
 
-  let raw = "";
-  try {
-    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        messages: [
-          { role: "user", content: buildDistillPrompt(recentMessages, existingFragments) },
-        ],
-      }),
-    });
-
-    if (!res.ok) return;
-    const json = await res.json();
-    raw = json.choices?.[0]?.message?.content ?? "";
-  } catch {
-    return;
+  let refined: MemoryFragment[] | null = null;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    refined = await distillOnce(recentMessages, existingFragments, apiKey, model);
+    if (refined) break;
   }
 
-  let items: { type: string; content: string }[] = [];
-  try {
-    const match = raw.match(/\[[\s\S]*\]/);
-    if (match) items = JSON.parse(match[0]);
-  } catch {
-    return;
-  }
+  // 三次全部失败则保留旧记忆，不替换
+  if (!refined) return;
 
-  const validTypes = new Set<MemoryType>(["trait", "event", "feeling", "bond", "general"]);
-
-  const refined: MemoryFragment[] = items
-    .filter((item) => item.content?.trim())
-    .map((item) => ({
-      id: crypto.randomUUID(),
-      type: validTypes.has(item.type as MemoryType) ? (item.type as MemoryType) : "general",
-      content: item.content.trim(),
-      createdAt: Date.now(),
-    }));
-
-  if (!refined.length) return;
-
-  // 全量替换：清空旧记忆，写入精炼后的完整列表
   await clearMemories();
   for (const f of refined) {
     await saveMemory(f);

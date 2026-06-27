@@ -1,4 +1,16 @@
-import type { DisplayLanguage } from "@/stores";
+import type { DisplayLanguage, Emotion } from "@/stores";
+
+const VALID_EMOTIONS = new Set<Emotion>([
+  "平静", "微笑", "开心笑", "大笑", "害羞", "害羞笑", "得意",
+  "思考", "疑惑", "惊讶", "震惊", "郁闷", "不爽", "生气", "大哭", "睡觉",
+]);
+
+export function getEmotion(text: string): Emotion | null {
+  const parts = text.split("|");
+  if (parts.length < 3) return null;
+  const candidate = parts[2].trim() as Emotion;
+  return VALID_EMOTIONS.has(candidate) ? candidate : null;
+}
 
 export function getSpokenText(text: string) {
   return stripBracketedText(splitBilingualText(text).ja).trim();

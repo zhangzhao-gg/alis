@@ -17,6 +17,7 @@ export interface Message {
 }
 
 export type MemoryType = "trait" | "event" | "feeling" | "bond" | "general";
+export type Emotion = "平静" | "微笑" | "开心笑" | "大笑" | "害羞" | "害羞笑" | "得意" | "思考" | "疑惑" | "惊讶" | "震惊" | "郁闷" | "不爽" | "生气" | "大哭" | "睡觉";
 
 export interface MemoryFragment {
   id: string;
@@ -58,18 +59,22 @@ export const useChatStore = create<ChatState>((set) => ({
 interface UIState {
   activeDrawer: DrawerType;
   displayLanguage: DisplayLanguage;
+  currentEmotion: Emotion;
   setDrawer: (d: DrawerType) => void;
   toggleDrawer: (d: Exclude<DrawerType, null>) => void;
   setDisplayLanguage: (language: DisplayLanguage) => void;
+  setEmotion: (emotion: Emotion) => void;
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
   activeDrawer: null,
   displayLanguage: "zh",
+  currentEmotion: "平静",
   setDrawer: (activeDrawer) => set({ activeDrawer }),
   toggleDrawer: (d) =>
     set({ activeDrawer: get().activeDrawer === d ? null : d }),
   setDisplayLanguage: (displayLanguage) => set({ displayLanguage }),
+  setEmotion: (currentEmotion) => set({ currentEmotion }),
 }));
 
 // ============================================================

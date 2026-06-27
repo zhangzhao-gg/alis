@@ -12,7 +12,7 @@ import { saveMessage } from "@/lib/db";
 import { tickAndDistill } from "@/lib/memory";
 import { playTts } from "@/lib/tts";
 import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt } from "@/lib/persona";
-import { getDisplayText, getSpokenText } from "@/lib/messageText";
+import { getDisplayText, getSpokenText, getEmotion } from "@/lib/messageText";
 import {
   finishAsrStream,
   listenAsrTranscript,
@@ -135,6 +135,10 @@ export function InputBar() {
           timestamp: aliceTs,
         };
         await saveMessage(finalMsg);
+
+        // 解析表情并更新
+        const emotion = getEmotion(accumulated);
+        if (emotion) useUIStore.getState().setEmotion(emotion);
 
         // 计数并按需触发记忆蒸馏（fire-and-forget，不阻塞回复流）
         const { apiKey, model } = useSettingsStore.getState();
