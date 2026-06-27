@@ -11,6 +11,14 @@ import { useChatStore } from "@/stores";
 export function NotebookDrawer() {
   const messages = useChatStore((s) => s.messages);
   const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const filtered = query.trim()
     ? messages.filter((m) => m.text.toLowerCase().includes(query.toLowerCase()))
@@ -48,7 +56,11 @@ export function NotebookDrawer() {
         ) : (
           <div className="space-y-10 pb-20">
             {filtered.map((msg) => (
-              <article key={msg.id} className="grid grid-cols-[80px_1fr] gap-6 group cursor-pointer">
+              <article
+                key={msg.id}
+                onClick={() => toggle(msg.id)}
+                className="grid grid-cols-[80px_1fr] gap-6 group cursor-pointer"
+              >
                 <div className="flex flex-col items-end pt-1">
                   <span className="text-[10px] text-tertiary/40 uppercase tracking-tight">
                     {new Date(msg.timestamp).toLocaleDateString("zh", { month: "short", day: "numeric" })}
@@ -59,7 +71,9 @@ export function NotebookDrawer() {
                 </div>
                 <div>
                   <p
-                    className={`text-body-md leading-relaxed line-clamp-3 ${
+                    className={`text-body-md leading-relaxed transition-all duration-300 ${
+                      expanded.has(msg.id) ? "" : "line-clamp-3"
+                    } ${
                       msg.sender === "alice"
                         ? "text-on-surface-variant/80 serif-journal italic"
                         : "text-on-surface/60"
