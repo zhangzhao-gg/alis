@@ -33,14 +33,11 @@ export function splitDisplaySentences(text: string) {
 }
 
 function splitBilingualText(text: string) {
-  const separatorIndex = text.indexOf("|");
-  if (separatorIndex === -1) {
-    return { ja: text, zh: text };
-  }
-
+  const parts = text.split("|");
+  if (parts.length === 1) return { ja: text, zh: text };
   return {
-    ja: text.slice(0, separatorIndex),
-    zh: text.slice(separatorIndex + 1),
+    ja: parts[0],
+    zh: parts[1] ?? parts[0],
   };
 }
 
