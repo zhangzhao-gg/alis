@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 stores/index 的 MemoryFragment、MemoryType
+ * [OUTPUT]: 对外提供 TAVERN_SYSTEM_PROMPT、buildTayamaContextPrompt、getCharacterStatus
+ * [POS]: lib 层角色系统，构建田山完整 system prompt，注入记忆与当前状态
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import type { MemoryFragment, MemoryType } from "@/stores";
 
 const TYPE_LABELS: Record<MemoryType, string> = {
@@ -179,6 +186,14 @@ const TAYAMA_PERSONA = String.raw`
 
 `.trim();
 
+export function getCharacterStatus(): string | null {
+  const now = new Date();
+  const total = now.getHours() * 60 + now.getMinutes();
+  if (total >= 9 * 60 && total < 21 * 60) return "上班中...";
+  if (total >= 21 * 60 && total < 23 * 60 + 30) return "在超市后门抽烟...";
+  return null;
+}
+
 export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
   let memoryText: string;
 
@@ -196,5 +211,8 @@ export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
       .join("\n\n");
   }
 
-  return [TAYAMA_PERSONA, "", "# 长期记忆", memoryText].join("\n");
+  const parts = [TAYAMA_PERSONA, "", "# 长期记忆", memoryText];
+  const status = getCharacterStatus();
+  if (status) parts.push("", `当前状态：${status}`);
+  return parts.join("\n");
 }

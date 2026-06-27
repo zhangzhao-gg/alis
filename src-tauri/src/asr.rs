@@ -17,7 +17,7 @@ use tokio_tungstenite::{
 };
 use uuid::Uuid;
 
-const WS_URL: &str = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel";
+const WS_URL: &str = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async";
 const RESOURCE_ID: &str = "volc.seedasr.sauc.duration";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(20);
@@ -400,6 +400,14 @@ async fn receive_stream_text(
                     emit_transcript(&app, &session_id, &final_text);
                 }
             }
+            // VAD: 检测到 definite=true 的分句，emit vad-end 触发自动发送
+            if let Some(vad_text) = extract_definite_text(&payload) {
+                let vad_text = vad_text.trim().to_string();
+                if !vad_text.is_empty() {
+                    println!("[ASR] VAD definite sentence: {:?}", vad_text);
+                    emit_vad_end(&app, &session_id, &vad_text);
+                }
+            }
         }
 
         if response.is_last {
@@ -426,6 +434,31 @@ fn emit_transcript(app: &AppHandle, session_id: &str, text: &str) {
     );
 }
 
+fn emit_vad_end(app: &AppHandle, session_id: &str, text: &str) {
+    let _ = app.emit(
+        "asr://vad-end",
+        AsrTranscriptEvent {
+            session_id: session_id.to_string(),
+            text: text.to_string(),
+        },
+    );
+}
+
+// 从 utterances 中提取最新 definite=true 分句的拼接文本
+fn extract_definite_text(payload: &Value) -> Option<String> {
+    let utterances = payload.pointer("/result/utterances")?.as_array()?;
+    let parts: Vec<&str> = utterances
+        .iter()
+        .filter(|u| u.get("definite").and_then(Value::as_bool).unwrap_or(false))
+        .filter_map(|u| u.get("text").and_then(Value::as_str))
+        .collect();
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(""))
+    }
+}
+
 fn build_full_request(seq: i32) -> Result<Vec<u8>, String> {
     let payload = json!({
         "user": { "uid": "alis" },
@@ -442,7 +475,7 @@ fn build_full_request(seq: i32) -> Result<Vec<u8>, String> {
             "enable_punc": true,
             "enable_ddc": true,
             "show_utterances": true,
-            "enable_nonstream": false
+            "enable_nonstream": true
         }
     });
 

@@ -16,6 +16,7 @@ import { getDisplayText, getSpokenText, getEmotion } from "@/lib/messageText";
 import {
   finishAsrStream,
   listenAsrTranscript,
+  listenAsrVadEnd,
   pushAsrAudio,
   startAsrStream,
 } from "@/lib/asr";
@@ -36,9 +37,8 @@ export function InputBar() {
     let disposed = false;
     let unlisten: (() => void) | undefined;
 
-    listenAsrTranscript(({ sessionId, text }) => {
+    listenAsrTranscript(({ sessionId }) => {
       if (disposed || sessionId !== asrSessionRef.current) return;
-      setText(text);
       setAsrHint("Listening...");
     })
       .then((cleanup) => {
@@ -254,6 +254,33 @@ export function InputBar() {
       setStatus("idle");
     }
   }, [sendContent, setStatus]);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    listenAsrVadEnd(({ sessionId }) => {
+      if (disposed || sessionId !== asrSessionRef.current) return;
+      if (!recorderRef.current) return;
+      console.log("[VAD] definite sentence detected, auto stopping");
+      void stopRecording();
+    })
+      .then((cleanup) => {
+        if (disposed) {
+          cleanup();
+          return;
+        }
+        unlisten = cleanup;
+      })
+      .catch((err) => {
+        console.error("ASR VAD listener error:", err);
+      });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [stopRecording]);
 
   const toggleRecording = useCallback(() => {
     if (recorderRef.current) {

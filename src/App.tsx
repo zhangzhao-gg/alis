@@ -13,6 +13,7 @@ import { InputBar } from "@/components/InputBar";
 import { DrawerPanel } from "@/components/drawers/DrawerPanel";
 import { useChatStore, useMemoryStore, useSettingsStore, useUIStore, type DisplayLanguage } from "@/stores";
 import { getMessages, getMemories, getSettings } from "@/lib/db";
+import { getCharacterStatus } from "@/lib/persona";
 
 export default function App() {
   const setFragments = useMemoryStore((s) => s.setFragments);
@@ -74,17 +75,23 @@ function TopBar() {
   const displayLanguage = useUIStore((s) => s.displayLanguage);
   const setDisplayLanguage = useUIStore((s) => s.setDisplayLanguage);
 
+  const characterStatus = getCharacterStatus();
+
   return (
     <header className="fixed top-0 left-16 right-0 z-40 flex justify-between items-center px-16 py-3 backdrop-blur-md bg-background/20">
       <div className="flex items-center gap-2 h-6">
-        {status !== "idle" && (
+        {status !== "idle" ? (
           <>
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             <span className="text-label-sm text-on-surface-variant tracking-widest uppercase text-[10px]">
               {status === "thinking" ? "Thinking..." : status === "speaking" ? "Speaking..." : "Listening..."}
             </span>
           </>
-        )}
+        ) : characterStatus ? (
+          <span className="text-label-sm text-on-surface-variant tracking-widest text-[10px]">
+            {characterStatus}
+          </span>
+        ) : null}
       </div>
       <div className="flex items-center gap-5">
         <div className="flex border border-outline-variant/20">
