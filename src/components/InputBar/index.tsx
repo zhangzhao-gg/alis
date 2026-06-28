@@ -58,6 +58,15 @@ export function InputBar() {
 
     listenAsrTranscript(({ sessionId }) => {
       if (disposed || sessionId !== asrSessionRef.current) return;
+      // barge-in：ASR 一识别到用户开口就立即掐断 TTS，不等整句说完
+      if (useChatStore.getState().status === "speaking") {
+        const handle = ttsHandleRef.current;
+        if (handle) {
+          debugLog("[VOICE] barge-in on transcript: stopping TTS immediately");
+          handle.cancel();
+          ttsHandleRef.current = null;
+        }
+      }
       setAsrHint("Listening...");
     })
       .then((cleanup) => {
@@ -328,11 +337,7 @@ export function InputBar() {
       if (disposed || sessionId !== asrSessionRef.current) return;
       if (!voiceModeRef.current || !recorderRef.current) return;
 
-      if (useChatStore.getState().status === "speaking") {
-        debugLog("[VOICE] ignored VAD while TTS speaking", vadText.trim());
-        return;
-      }
-
+      // TTS 播放中不拦截 VAD —— 让 sendContent 的 barge-in 分支处理打断
       const apiKey = useSettingsStore.getState().ttsApiKey;
       if (!apiKey) return;
 
