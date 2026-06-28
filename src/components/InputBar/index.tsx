@@ -98,34 +98,6 @@ export function InputBar() {
     debugLog("[ASR] capture started");
   }, [rotateAsrSession]);
 
-  const pauseVoiceCapture = useCallback(async () => {
-    const recorder = recorderRef.current;
-    const sessionId = asrSessionRef.current;
-    const pendingAudioPush = audioPushRef.current;
-    if (!recorder && !sessionId) return;
-
-    debugLog("[ASR] capture pausing before TTS");
-    recorderRef.current = null;
-    asrSessionRef.current = null;
-    audioPushRef.current = Promise.resolve();
-
-    try {
-      let tail: Uint8Array = new Uint8Array();
-      if (recorder) {
-        const flushed = recorder.flushPending();
-        const stopped = await recorder.stop();
-        tail = concatBytes(flushed, stopped);
-      }
-      await pendingAudioPush.catch(() => {});
-      if (sessionId) {
-        await finishAsrStream({ sessionId, audio: tail }).catch(() => {});
-      }
-      debugLog("[ASR] capture paused");
-    } catch (err) {
-      debugError("[ASR] pause error", errorMessage(err, "ASR pause failed"));
-    }
-  }, []);
-
   const speakReply = useCallback(async (reply: string, onPlaybackStart?: () => void, force = false) => {
     const { voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker } = useSettingsStore.getState();
     const spokenText = reply.trim();
@@ -143,14 +115,8 @@ export function InputBar() {
       return;
     }
     setStatus("speaking");
-    setAsrHint("Preparing voice...");
-
-    const shouldPauseCapture = force && voiceModeRef.current && !!recorderRef.current;
-    if (shouldPauseCapture) {
-      await pauseVoiceCapture();
-}
-
     setAsrHint("Speaking...");
+
     debugLog("[TTS] request playback", {
       chars: spokenText.length,
       resourceId: ttsResourceId,
@@ -171,17 +137,8 @@ export function InputBar() {
     } finally {
       ttsHandleRef.current = null;
       setAsrHint("");
-
-      if (shouldPauseCapture && voiceModeRef.current && !recorderRef.current) {
-        try {
-          await startVoiceCapture(ttsApiKey);
-        } catch (err) {
-          debugError("[ASR] resume error", errorMessage(err, "ASR resume failed"));
-          voiceModeRef.current = false;
-        }
-      }
     }
-  }, [pauseVoiceCapture, setStatus, startVoiceCapture]);
+  }, [setStatus]);
 
   // sendContent 存 ref 供 status effect 调用，避免闭包失效
   const sendContentRef = useRef<(rawContent: string, source?: InputSource) => Promise<void>>(async () => {});
@@ -193,19 +150,26 @@ export function InputBar() {
     const isVoiceThinking = source === "voice" && currentStatus === "thinking";
     const isVoiceSpeaking = source === "voice" && currentStatus === "speaking";
 
-    // 语音模式下 AI 还在思考时先排队；播放时忽略 ASR，避免 TTS 被自己打断。
+    // 语音模式下 AI 还在思考时先排队
     if (isVoiceThinking) {
       if (!content) return;
       pendingVoiceSendRef.current = content;
       return;
     }
 
+    // TTS 播放中收到 ASR 结果 —— barge-in：打断 TTS，处理用户输入
     if (isVoiceSpeaking) {
-      debugLog("[VOICE] ignored ASR while TTS speaking", content);
-      return;
+      if (!content) return;
+      debugLog("[VOICE] barge-in: interrupting TTS", content);
+      const handle = ttsHandleRef.current;
+      if (handle) {
+        handle.cancel();
+        ttsHandleRef.current = null;
+      }
+      // 落到下方正常处理 content
     }
 
-    if (!content || !settings.apiKey || (currentStatus !== "idle" && !isVoiceRecording)) return;
+    if (!content || !settings.apiKey || (currentStatus !== "idle" && !isVoiceRecording && !isVoiceSpeaking)) return;
     const shouldSpeakReply = source === "voice" || settings.voiceEnabled;
     const delayReplyDisplay = source === "voice" && shouldSpeakReply && !!settings.ttsApiKey && !!settings.ttsResourceId;
 
@@ -543,11 +507,4 @@ function randomInt(min: number, max: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
-  const result = new Uint8Array(a.byteLength + b.byteLength);
-  result.set(a, 0);
-  result.set(b, a.byteLength);
-  return result;
 }

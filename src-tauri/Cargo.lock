@@ -33,6 +33,7 @@ name = "alis"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "cc",
  "flate2",
  "futures-util",
  "http",

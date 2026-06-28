@@ -1,6 +1,9 @@
 use base64::{engine::general_purpose, Engine as _};
 use serde::Deserialize;
 use serde_json::json;
+use std::time::Duration;
+
+use crate::audio_engine;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -21,8 +24,8 @@ struct TtsResponse {
     data: Option<String>,
 }
 
-#[tauri::command]
-pub async fn synthesize_tts(request: TtsRequest) -> Result<String, String> {
+/// 合成 TTS 音频，返回 MP3 bytes
+async fn synthesize_mp3(request: &TtsRequest) -> Result<Vec<u8>, String> {
     println!(
         "[TTS] synthesize request: chars={}, resource_id={}, speaker={}",
         request.text.chars().count(),
@@ -44,8 +47,8 @@ pub async fn synthesize_tts(request: TtsRequest) -> Result<String, String> {
 
     let response = reqwest::Client::new()
         .post("https://openspeech.bytedance.com/api/v3/tts/unidirectional")
-        .header("X-Api-Key", request.api_key)
-        .header("X-Api-Resource-Id", request.resource_id)
+        .header("X-Api-Key", request.api_key.clone())
+        .header("X-Api-Resource-Id", request.resource_id.clone())
         .header("Content-Type", "application/json")
         .header("Connection", "keep-alive")
         .json(&payload)
@@ -88,7 +91,55 @@ pub async fn synthesize_tts(request: TtsRequest) -> Result<String, String> {
     }
 
     println!("[TTS] decoded audio bytes: {}", audio.len());
-    Ok(general_purpose::STANDARD.encode(audio))
+    Ok(audio)
+}
+
+/// 合成 + 用 VoiceProcessingIO 播放，阻塞到播放完成
+#[tauri::command]
+pub async fn tts_play(request: TtsRequest) -> Result<(), String> {
+    println!("[TTS] tts_play: chars={}", request.text.chars().count());
+
+    // 1. 合成 MP3
+    let mp3_bytes = synthesize_mp3(&request).await?;
+    println!("[TTS] synthesized bytes: {}", mp3_bytes.len());
+
+    // 2. 确保音频引擎已启动
+    if !audio_engine::init() {
+        return Err("audio engine init failed".to_string());
+    }
+    if !audio_engine::start() {
+        return Err("audio engine start failed".to_string());
+    }
+
+    // 3. 写临时文件
+    let temp_path = std::env::temp_dir().join(format!("alis_tts_{}.mp3", uuid::Uuid::new_v4()));
+    std::fs::write(&temp_path, &mp3_bytes)
+        .map_err(|e| format!("write temp file failed: {e}"))?;
+
+    // 4. 播放
+    let duration = audio_engine::play_file(temp_path.to_str().unwrap())?;
+    println!("[TTS] playing duration: {:.2}s", duration);
+
+    // 5. 等待播放完成（轮询）
+    loop {
+        if !audio_engine::is_playing() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    // 6. 删除临时文件
+    let _ = std::fs::remove_file(&temp_path);
+
+    println!("[TTS] playback finished");
+    Ok(())
+}
+
+/// 停止 TTS 播放
+#[tauri::command]
+pub async fn tts_stop() -> Result<(), String> {
+    audio_engine::stop();
+    Ok(())
 }
 
 fn is_success_code(code: i32) -> bool {
