@@ -148,9 +148,7 @@ export function InputBar() {
     const shouldPauseCapture = force && voiceModeRef.current && !!recorderRef.current;
     if (shouldPauseCapture) {
       await pauseVoiceCapture();
-      debugLog("[TTS] wait after ASR pause", { ms: 1000 });
-      await wait(1000);
-    }
+}
 
     setAsrHint("Speaking...");
     debugLog("[TTS] request playback", {
