@@ -20,6 +20,9 @@ export class RealtimePcmRecorder {
   private onChunk: AudioChunkHandler | null = null;
 
   async start(onChunk: AudioChunkHandler) {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("麦克风不可用：请检查系统隐私设置中的麦克风权限");
+    }
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.audioContext = new AudioContext();
     this.source = this.audioContext.createMediaStreamSource(this.stream);
