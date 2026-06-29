@@ -11,9 +11,18 @@ interface ParsedReply {
   emotion: Emotion | null;
 }
 
+function normalizeText(text: string) {
+  return text
+    .replace(/【/g, "[")
+    .replace(/】/g, "]")
+    .replace(/（/g, "(")
+    .replace(/）/g, ")");
+}
+
 function parseReply(text: string): ParsedReply {
+  const normalized = normalizeText(text);
   // JSON 格式优先
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = normalized.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       const obj = JSON.parse(jsonMatch[0]);
@@ -25,7 +34,7 @@ function parseReply(text: string): ParsedReply {
   }
 
   // pipe 格式兜底（兼容旧消息）
-  const parts = text.split("|");
+  const parts = normalized.split("|");
   if (parts.length >= 2) {
     const emotion = parts.length >= 3 && VALID_EMOTIONS.has(parts[2].trim() as Emotion)
       ? parts[2].trim() as Emotion
@@ -33,7 +42,7 @@ function parseReply(text: string): ParsedReply {
     return { ja: parts[0] ?? "", zh: parts[1] ?? "", emotion };
   }
 
-  return { ja: text, zh: text, emotion: null };
+  return { ja: normalized, zh: normalized, emotion: null };
 }
 
 export function getEmotion(text: string): Emotion | null {
