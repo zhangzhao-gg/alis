@@ -1,6 +1,6 @@
 # 语音模式技术架构
 
-本文档描述 alis 在 macOS 上实现"类微信电话"全双工语音对话的技术方案。
+本文档描述 alis 在 macOS 上实现"类微信电话"全双工语音对话的技术方案，以及普通文字消息下的清晰语音播放路径。
 
 ## 核心目标
 
@@ -9,6 +9,7 @@
 - **回声消除**：TTS 声音不被麦克风录回去（AEC）
 - **自动增益**：麦克风音量自动调节（AGC）
 - **降噪**：消除环境噪声（NS）
+- **清晰播放**：单独发送文字消息时，TTS 走普通媒体播放层，不进入通话模式
 
 ## 整体架构
 
@@ -26,8 +27,13 @@
                                         └─ Bus 0 (output)
                                             ↑ RenderCallback
                                             ↑ 从 ring buffer 拉数据
-TTS invoke tts_play ──────────────► 合成 MP3 → AVAudioConverter 转 16kHz/Float32/mono
+语音模式 TTS
+invoke tts_prepare/tts_start ────► 合成 MP3 → AVAudioConverter 转 16kHz/Float32/mono
                                     → 写入播放 ring buffer → AudioUnit 拉取播放
+
+普通文字消息 TTS
+Audio(Blob URL) ◄───────────────── invoke tts_synthesize
+媒体播放层播放 MP3                  合成 MP3 → base64 返回前端
 ```
 
 ## 关键技术选型
@@ -68,17 +74,42 @@ TTS invoke tts_play ──────────────► 合成 MP3 →
 
 ### 播放流（TTS 输出）
 
-1. 前端 `invoke('tts_play')` → Rust 调火山引擎 TTS HTTP API
-2. 响应是 NDJSON，`DATA` 字段是 base64 编码的 MP3 chunk
-3. 拼接所有 chunk 得到完整 MP3，写临时文件
-4. ObjC `audio_engine_play_file` 用 `AVAudioFile` 解码 MP3
-5. 用 `AVAudioConverter` 把文件格式（24kHz/1ch）转成 16kHz/Float32/mono
-6. 写入播放 ring buffer（1MB，约 13 秒容量）
-7. VoiceProcessingIO Bus 0（output）触发 `RenderCallback`
-8. 回调从 ring buffer 拉数据填充输出 buffer
-9. 播放完成后清空 ring buffer
+TTS 有两条播放路径，按交互场景分流。
 
-**播放格式**：16kHz / Float32 / mono（与录音格式一致）
+| 场景 | 播放层 | 目标 | macOS 音频模式 |
+|------|--------|------|----------------|
+| 单独发送文字消息，开启 TTS 回复 | 前端 `HTMLAudioElement` 播放 MP3 | 保留清晰媒体音质 | 普通媒体播放，不进入通话模式 |
+| 语音对话模式，麦克风常开 | `VoiceProcessingIO` AudioUnit | 全双工、barge-in、AEC/AGC/NS | 通话模式，蓝牙耳机可能切 HFP |
+
+#### 普通文字消息：清晰语音层
+
+1. 前端 `playTts({ mode: "normal" })` → `invoke('tts_synthesize')`
+2. Rust 调火山引擎 TTS HTTP API
+3. 响应是 NDJSON，`DATA` 字段是 base64 编码的 MP3 chunk
+4. Rust 拼接所有 chunk 得到完整 MP3，并以 base64 返回前端
+5. 前端把 base64 转成 `Blob`，创建 `Object URL`
+6. 前端用 `HTMLAudioElement` 播放 MP3
+7. 播放结束或取消时释放 `Object URL`
+
+这条路径不会调用 `audio_engine::init` / `audio_engine::start`，也不会创建 `kAudioUnitSubType_VoiceProcessingIO`。因此普通文字消息触发的语音回复走的是清晰的媒体播放层，不会把 macOS 或蓝牙耳机切到语音通话模式。
+
+**播放格式**：由系统媒体播放栈解码 MP3，保留普通媒体播放音质。
+
+#### 语音对话模式：双工通话层
+
+1. 前端 `playTts({ mode: "duplex" })` → `invoke('tts_prepare')`
+2. Rust 调火山引擎 TTS HTTP API
+3. 响应是 NDJSON，`DATA` 字段是 base64 编码的 MP3 chunk
+4. 拼接所有 chunk 得到完整 MP3，写临时文件
+5. ObjC `audio_engine_play_file` 用 `AVAudioFile` 解码 MP3
+6. 用 `AVAudioConverter` 把文件格式（24kHz/1ch）转成 16kHz/Float32/mono
+7. 写入播放 ring buffer（1MB，约 13 秒容量）
+8. 前端触发文字显示后调用 `invoke('tts_start')`
+9. VoiceProcessingIO Bus 0（output）触发 `RenderCallback`
+10. 回调从 ring buffer 拉数据填充输出 buffer
+11. 播放完成后清空 ring buffer
+
+**播放格式**：16kHz / Float32 / mono（与录音格式一致）。这是为了全双工和回声消除，不追求媒体播放音质。
 
 ## 核心文件
 
@@ -100,9 +131,11 @@ TTS invoke tts_play ──────────────► 合成 MP3 →
   - Tauri 命令：`audio_start_capture` / `audio_stop_capture` / `audio_poll_pcm`
 
 ### [src-tauri/src/tts.rs](../src-tauri/src/tts.rs)
-- **角色**：TTS 合成 + 播放
+- **角色**：TTS 合成 + 两种播放路径的后端入口
 - **关键函数**：
-  - `tts_play`：合成 MP3 → 写临时文件 → 调 `audio_engine::play_file` → 轮询 `is_playing` → 删临时文件
+  - `tts_synthesize`：普通文字消息路径，只合成 MP3 并返回 base64，前端负责清晰播放
+  - `tts_prepare`：语音对话路径，合成 MP3 → 写临时文件 → 调 `audio_engine::play_file` 填充 ring buffer
+  - `tts_start`：语音对话路径，启动 VoiceProcessingIO 播放并阻塞到播放完成
   - `tts_stop`：调 `audio_engine::stop`
 
 ### [src-tauri/build.rs](../src-tauri/build.rs)
@@ -113,7 +146,10 @@ TTS invoke tts_play ──────────────► 合成 MP3 →
 
 ### [src/lib/tts.ts](../src/lib/tts.ts)
 - **角色**：前端 TTS 调用封装
-- **逻辑**：`invoke("tts_play")` 阻塞直到播放完成，`invoke("tts_stop")` 取消
+- **逻辑**：
+  - `mode: "normal"`：`invoke("tts_synthesize")` 拿 MP3 base64，转 `Blob` 后用 `HTMLAudioElement` 播放
+  - `mode: "duplex"`：`invoke("tts_prepare")` 填 ring buffer，再 `invoke("tts_start")` 走 VoiceProcessingIO 播放
+  - `cancel()`：普通路径停止前端 `Audio`，双工路径调用 `invoke("tts_stop")`
 
 ### [src/lib/recorder.ts](../src/lib/recorder.ts)
 - **角色**：前端录音轮询（不再用 getUserMedia）
@@ -123,6 +159,8 @@ TTS invoke tts_play ──────────────► 合成 MP3 →
 - **角色**：语音模式 UI 控制
 - **逻辑**：
   - 开语音模式 → `invoke('audio_start_capture')`
+  - 文字发送触发 TTS → `playTts({ mode: "normal" })`，走清晰媒体播放层
+  - 语音模式触发 TTS → `playTts({ mode: "duplex" })`，走 VoiceProcessingIO 双工层
   - ASR 结果回来 → 打断 TTS（barge-in）→ 处理用户输入
   - 关语音模式 → `invoke('audio_stop_capture')`
 
@@ -136,6 +174,8 @@ TTS invoke tts_play ──────────────► 合成 MP3 →
 | HFP | 通话 | 16kHz 单声道 | 双向（能听能说） |
 
 **开录音 → 蓝牙耳机切到 HFP → 输出也变成 16kHz 单声道**。这是蓝牙协议的物理限制，无法绕过——只要用蓝牙耳机录音，就必然切 HFP，必然 16kHz 音质。
+
+普通文字消息的 TTS 回复不打开录音，也不启动 VoiceProcessingIO，因此不会触发这条 HFP 通话链路。它走系统媒体播放层，音质按普通媒体播放处理。
 
 微信通话也是 16kHz，只是平时没注意。VoiceProcessingIO 走 HFP 通话通道，音质与微信一致。
 
@@ -174,7 +214,8 @@ TTS invoke tts_play ──────────────► 合成 MP3 →
 ## 性能数据
 
 - **录音延迟**：VoiceProcessingIO 回调直接拿 PCM，无额外缓冲
-- **播放延迟**：TTS 合成完 → 写 ring buffer → AudioUnit 拉取（约 20-50ms）
+- **普通播放延迟**：TTS 合成完 → 前端 `Audio` 播放 MP3（不进入通话模式）
+- **双工播放延迟**：TTS 合成完 → 写 ring buffer → AudioUnit 拉取（约 20-50ms）
 - **首字延迟**：TTS 合成需 5-13 秒（取决于文本长度），这是 HTTP API 的限制
 - **内存占用**：播放 ring buffer 1MB（约 13 秒 16kHz mono Float32）
 

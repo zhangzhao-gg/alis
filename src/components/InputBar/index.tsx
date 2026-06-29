@@ -138,6 +138,7 @@ export function InputBar() {
       speaker: ttsSpeaker,
       text: spokenText,
       onStart: onPlaybackStart,
+      mode: force ? "duplex" : "normal",
     });
     ttsHandleRef.current = handle;
     try {

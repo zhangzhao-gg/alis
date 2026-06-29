@@ -4,7 +4,7 @@ mod tts;
 
 use asr::{asr_finish_stream, asr_push_audio, asr_start_stream, AsrStreams};
 use audio_engine::{audio_poll_pcm, audio_start_capture, audio_stop_capture};
-use tts::{tts_prepare, tts_start, tts_stop};
+use tts::{tts_prepare, tts_start, tts_stop, tts_synthesize};
 
 // Tauri 应用库入口，注册插件和命令
 pub fn run() {
@@ -12,6 +12,7 @@ pub fn run() {
         .manage(AsrStreams::default())
         .plugin(tauri_plugin_sql::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            tts_synthesize,
             tts_prepare,
             tts_start,
             tts_stop,

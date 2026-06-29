@@ -75,7 +75,10 @@ async fn synthesize_mp3(request: &TtsRequest) -> Result<Vec<u8>, String> {
             .map_err(|err| format!("TTS JSON parse failed: {err}: {line}"))?;
 
         if !is_success_code(payload.code) {
-            return Err(format!("TTS API error {}: {}", payload.code, payload.message));
+            return Err(format!(
+                "TTS API error {}: {}",
+                payload.code, payload.message
+            ));
         }
 
         if let Some(data) = payload.data.filter(|data| !data.is_empty()) {
@@ -92,6 +95,17 @@ async fn synthesize_mp3(request: &TtsRequest) -> Result<Vec<u8>, String> {
 
     println!("[TTS] decoded audio bytes: {}", audio.len());
     Ok(audio)
+}
+
+/// 普通 TTS：只合成 MP3 并返回给前端播放，不启动 VoiceProcessingIO。
+#[tauri::command]
+pub async fn tts_synthesize(request: TtsRequest) -> Result<String, String> {
+    println!(
+        "[TTS] tts_synthesize: chars={}",
+        request.text.chars().count()
+    );
+    let mp3_bytes = synthesize_mp3(&request).await?;
+    Ok(general_purpose::STANDARD.encode(mp3_bytes))
 }
 
 /// 第一步：合成 MP3 + 解码 + 填充 ring buffer（不出声）
@@ -114,8 +128,7 @@ pub async fn tts_prepare(request: TtsRequest) -> Result<(), String> {
 
     // 3. 写临时文件 → 解码 → 填充 ring buffer
     let temp_path = std::env::temp_dir().join(format!("alis_tts_{}.mp3", uuid::Uuid::new_v4()));
-    std::fs::write(&temp_path, &mp3_bytes)
-        .map_err(|e| format!("write temp file failed: {e}"))?;
+    std::fs::write(&temp_path, &mp3_bytes).map_err(|e| format!("write temp file failed: {e}"))?;
 
     let duration = audio_engine::play_file(temp_path.to_str().unwrap())?;
     println!("[TTS] ring buffer filled, duration: {:.2}s", duration);

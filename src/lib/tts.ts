@@ -1,8 +1,7 @@
 /**
  * [INPUT]: 依赖 @tauri-apps/api/core 的 invoke
  * [OUTPUT]: 对外提供 playTts（返回 promise + cancel）
- * [POS]: lib 层 TTS 接入，Rust 合成 MP3 后用 VoiceProcessingIO AudioUnit 播放
- *        VoiceProcessingIO AudioUnit 在 Tauri 主进程运行，隐式走通话通道，与录音协同全双工
+ * [POS]: lib 层 TTS 接入，普通回复由前端 Audio 播放，语音对话由 VoiceProcessingIO 全双工播放
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -15,6 +14,7 @@ interface PlayTtsOptions {
   speaker: string;
   text: string;
   onStart?: () => void;
+  mode?: "normal" | "duplex";
 }
 
 export interface TtsHandle {
@@ -22,31 +22,102 @@ export interface TtsHandle {
   cancel: () => void;
 }
 
-export function playTts({ apiKey, resourceId, speaker, text, onStart }: PlayTtsOptions): TtsHandle {
+function base64ToBlob(base64: string, type: string) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type });
+}
+
+export function playTts({ apiKey, resourceId, speaker, text, onStart, mode = "normal" }: PlayTtsOptions): TtsHandle {
   let cancelled = false;
-  let stage: "prepare" | "playing" | "done" = "prepare";
+  let audio: HTMLAudioElement | null = null;
+  let objectUrl: string | null = null;
+  let stage: "synthesize" | "prepare" | "playing" | "done" = mode === "normal" ? "synthesize" : "prepare";
+  let finishNormalPlayback: (() => void) | null = null;
+
+  const cleanupNormalAudio = () => {
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      audio = null;
+    }
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    }
+  };
 
   const promise = new Promise<void>((resolve) => {
     (async () => {
-      debugLog("[TTS] invoke tts_prepare", { chars: text.length, resourceId, speaker });
+      if (mode === "normal") {
+        debugLog("[TTS] invoke tts_synthesize", { chars: text.length, resourceId, speaker });
 
-      // 1. 合成 + 解码 + 填充 ring buffer（不出声）
-      await invoke("tts_prepare", {
-        request: { apiKey, resourceId, speaker, text },
-      }).catch((err) => {
-        debugError("[TTS] tts_prepare error", err instanceof Error ? err.message : String(err));
-      });
+        const audioBase64 = await invoke<string>("tts_synthesize", {
+          request: { apiKey, resourceId, speaker, text },
+        }).catch((err) => {
+          debugError("[TTS] tts_synthesize error", err instanceof Error ? err.message : String(err));
+          return "";
+        });
 
-      if (cancelled) {
-        debugLog("[TTS] cancelled before playback");
+        if (cancelled || !audioBase64) {
+          debugLog("[TTS] normal playback skipped", { cancelled, hasAudio: !!audioBase64 });
+          resolve();
+          return;
+        }
+
+        objectUrl = URL.createObjectURL(base64ToBlob(audioBase64, "audio/mpeg"));
+        audio = new Audio(objectUrl);
+        stage = "playing";
+        onStart?.();
+
+        await new Promise<void>((finish) => {
+          let finished = false;
+          const done = () => {
+            if (finished) return;
+            finished = true;
+            finishNormalPlayback = null;
+            cleanupNormalAudio();
+            finish();
+          };
+          finishNormalPlayback = done;
+          audio!.onended = done;
+          audio!.onerror = () => {
+            debugError("[TTS] normal audio playback error", "HTMLAudioElement failed");
+            done();
+          };
+          audio!.play().catch((err) => {
+            debugError("[TTS] normal audio play error", err instanceof Error ? err.message : String(err));
+            done();
+          });
+        });
+
+        stage = "done";
+        debugLog("[TTS] normal playback finished");
         resolve();
         return;
       }
 
-      // 2. ring buffer 已就绪 → 通知前端开始打字机（此时声音尚未出）
+      debugLog("[TTS] invoke tts_prepare", { chars: text.length, resourceId, speaker });
+
+      const prepared = await invoke("tts_prepare", {
+        request: { apiKey, resourceId, speaker, text },
+      }).catch((err) => {
+        debugError("[TTS] tts_prepare error", err instanceof Error ? err.message : String(err));
+        return false;
+      });
+
+      if (cancelled || prepared === false) {
+        debugLog("[TTS] duplex playback skipped", { cancelled, prepared: prepared !== false });
+        resolve();
+        return;
+      }
+
       onStart?.();
 
-      // 3. 设置 _playing=true 立即出声，阻塞到播放完成
       stage = "playing";
       await invoke("tts_start").catch((err) => {
         debugError("[TTS] tts_start error", err instanceof Error ? err.message : String(err));
@@ -61,7 +132,16 @@ export function playTts({ apiKey, resourceId, speaker, text, onStart }: PlayTtsO
   const cancel = () => {
     if (cancelled) return;
     cancelled = true;
-    debugLog("[TTS] cancel requested", { stage });
+    debugLog("[TTS] cancel requested", { mode, stage });
+    if (mode === "normal") {
+      const finish = finishNormalPlayback;
+      if (finish) {
+        finish();
+      } else {
+        cleanupNormalAudio();
+      }
+      return;
+    }
     invoke("tts_stop").catch(() => {});
   };
 
