@@ -184,7 +184,6 @@ export function InputBar() {
     }
 
     if (!content || !settings.apiKey || (currentStatus !== "idle" && !isVoiceRecording && !isVoiceSpeaking)) return;
-    const shouldSpeakReply = source === "voice" || settings.voiceEnabled;
 
     setAsrHint("");
 
