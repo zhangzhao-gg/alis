@@ -187,13 +187,39 @@ const TAYAMA_PERSONA = String.raw`
 
 `.trim();
 
-export function getCharacterStatus(): string | null {
+export type CharacterStatus = "working" | "smoking" | "resting";
+
+export function getCharacterStatus(): CharacterStatus {
   const now = new Date();
   const total = now.getHours() * 60 + now.getMinutes();
-  if (total >= 9 * 60 && total < 21 * 60) return "上班中...";
-  if (total >= 21 * 60 && total < 23 * 60 + 30) return "在超市后门抽烟...";
-  return null;
+  if (total >= 9 * 60 && total < 21 * 60) return "working";
+  if (total >= 21 * 60 && total < 23 * 60 + 30) return "smoking";
+  return "resting";
 }
+
+export const STATUS_LABEL: Record<CharacterStatus, string> = {
+  working: "上班中...",
+  smoking: "在超市后门抽烟...",
+  resting: "休息中...",
+};
+
+// 上班状态专属人设 —— 山田营业人格，内容待填
+const YAMADA_WORKING_PERSONA = `
+# 山田 · 收银台营业假面
+TODO: 上班状态人设内容待填写
+`.trim();
+
+// 休息状态专属人设
+const TAYAMA_RESTING_PERSONA = `
+# 田山 · 深夜归家
+TODO: 23:30 之后休息状态人设内容待填写
+`.trim();
+
+const PERSONA_BY_STATUS: Record<CharacterStatus, string> = {
+  working: YAMADA_WORKING_PERSONA,
+  smoking: TAYAMA_PERSONA,
+  resting: TAYAMA_RESTING_PERSONA,
+};
 
 export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
   let memoryText: string;
@@ -212,8 +238,8 @@ export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
       .join("\n\n");
   }
 
-  const parts = [TAYAMA_PERSONA, "", "# 长期记忆", memoryText];
   const status = getCharacterStatus();
-  if (status) parts.push("", `当前状态：${status}`);
+  const persona = PERSONA_BY_STATUS[status];
+  const parts = [persona, "", "# 长期记忆", memoryText, "", `当前状态：${STATUS_LABEL[status]}`];
   return parts.join("\n");
 }
