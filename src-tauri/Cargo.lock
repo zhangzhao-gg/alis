@@ -29,26 +29,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alis"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "cc",
- "flate2",
- "futures-util",
- "http",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-sql",
- "tokio",
- "tokio-tungstenite",
- "uuid",
-]
-
-[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5637,6 +5617,26 @@ dependencies = [
  "libc",
  "once_cell",
  "pkg-config",
+]
+
+[[package]]
+name = "yamada"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "cc",
+ "flate2",
+ "futures-util",
+ "http",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-sql",
+ "tokio",
+ "tokio-tungstenite",
+ "uuid",
 ]
 
 [[package]]
