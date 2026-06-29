@@ -23,7 +23,7 @@ export function SideNav() {
         onClick={() => setDrawer(null)}
         className="text-on-surface-variant hover:text-on-surface tracking-widest [writing-mode:vertical-lr] rotate-180 mb-12 text-sm font-medium transition-colors duration-300 cursor-pointer select-none"
       >
-        ALICE
+        YAMADA
       </button>
 
       <div className="flex flex-col space-y-12 items-center flex-1">

@@ -70,7 +70,7 @@ export default function App() {
       {/* 页脚 */}
       <footer className="fixed bottom-0 right-0 px-16 py-2 pointer-events-none z-50">
         <div className="flex gap-6 opacity-30 hover:opacity-70 transition-opacity pointer-events-auto">
-          <span className="text-label-sm text-outline">© Alice AI. A quiet space.</span>
+          <span className="text-label-sm text-outline">© Yamada. A quiet space.</span>
         </div>
       </footer>
     </div>
