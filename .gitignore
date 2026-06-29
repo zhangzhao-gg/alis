@@ -22,6 +22,9 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# Deploy docs
+ui/official/deploy.md
+
 # Editor and OS files
 .DS_Store
 Thumbs.db

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>田山小姐 · 住在你电脑里的那个人</title>
+<meta name="description" content="一个会记住你、会接住疲惫、也会轻轻捉弄你的 macOS 桌面角色。">
+<link rel="icon" type="image/png" href="./平静.png">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "on-surface": "#e5e1e4",
+          "primary-container": "#d8bfd6",
+          "tertiary": "#f9dcdc",
+          "on-tertiary": "#3e2c2c",
+          "glow-primary": "rgba(216, 191, 214, 0.3)",
+          "primary-fixed-dim": "#d8bfd6",
+          "surface-container-lowest": "#0e0e10",
+          "primary": "#f5dbf2",
+          "error": "#ffb4ab",
+          "surface-tint": "#d8bfd6",
+          "surface-container": "#1f1f21",
+          "on-tertiary-fixed": "#271718",
+          "on-surface-variant": "#cec4ca",
+          "secondary-fixed-dim": "#eabbbb",
+          "inverse-surface": "#e5e1e4",
+          "surface-overlay": "rgba(28, 27, 29, 0.2)",
+          "surface-variant": "#353437",
+          "on-tertiary-fixed-variant": "#564242",
+          "outline": "#978e95",
+          "background": "#131315",
+          "primary-fixed": "#f5dbf2",
+          "inverse-primary": "#6c586c",
+          "on-primary-fixed-variant": "#534154",
+          "tertiary-fixed-dim": "#dcc0c0",
+          "surface-dim": "#131315",
+          "surface": "#131315",
+          "on-secondary-fixed-variant": "#5f3e3e",
+          "surface-container-low": "#1b1b1d",
+          "on-error": "#690005",
+          "tertiary-fixed": "#f9dcdc",
+          "surface-bright": "#39393b",
+          "outline-variant": "#4c454a",
+          "secondary": "#eabbbb",
+          "on-primary-container": "#5f4c60",
+          "on-primary-fixed": "#251627",
+          "secondary-container": "#5f3e3e",
+          "on-primary": "#3c2b3c",
+          "tertiary-container": "#dcc0c0",
+          "secondary-fixed": "#ffdad9",
+          "on-secondary-container": "#d7aaaa",
+          "inverse-on-surface": "#303032",
+          "glow-avatar": "rgba(97, 76, 76, 0.4)",
+          "surface-container-highest": "#353437",
+          "surface-container-high": "#2a2a2c",
+          "error-container": "#93000a",
+          "on-background": "#e5e1e4",
+          "on-secondary": "#462828",
+          "on-error-container": "#ffdad6",
+          "on-secondary-fixed": "#2e1414",
+          "on-tertiary-container": "#624d4e"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.125rem",
+          "lg": "0.25rem",
+          "xl": "0.5rem",
+          "full": "0.75rem"
+        },
+        "spacing": {
+          "unit": "8px",
+          "container-max": "1200px",
+          "gutter": "32px",
+          "margin-desktop": "64px",
+          "margin-mobile": "24px",
+          "sidebar-width": "64px"
+        },
+        "fontFamily": {
+          "display": ["Inter", "sans-serif"],
+          "serif-jp": ["Noto Serif JP", "serif"],
+          "body-md": ["Inter", "sans-serif"],
+          "body-lg": ["Inter", "sans-serif"],
+          "headline-md": ["Inter", "sans-serif"],
+          "headline-lg": ["Inter", "sans-serif"],
+          "label-md": ["Inter", "sans-serif"],
+          "label-sm": ["Inter", "sans-serif"]
+        },
+        "fontSize": {
+          "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "300"}],
+          "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+          "body-lg": ["18px", {"lineHeight": "28px", "letterSpacing": "0.01em", "fontWeight": "300"}],
+          "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "400"}],
+          "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+          "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+          "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.2em", "fontWeight": "400"}]
+        }
+      },
+    },
+  }
+</script>
+<style>
+  body {
+    background-color: #131315;
+    color: #e5e1e4;
+    scroll-behavior: smooth;
+  }
+
+  .glow-primary {
+    text-shadow: 0 0 20px rgba(216, 191, 214, 0.4);
+  }
+
+  .avatar-glow {
+    box-shadow: 0 0 40px rgba(216, 191, 214, 0.15);
+  }
+
+  .lyric-gradient {
+    mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+  }
+
+  .writing-vertical {
+    writing-mode: vertical-lr;
+  }
+
+  .glass-panel {
+    background: rgba(27, 27, 29, 0.2);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.05); }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+  }
+</style>
+</head>
+<body id="top" class="font-body-md text-body-md overflow-x-hidden">
+
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-margin-desktop py-unit h-16 bg-surface-container-low/20 backdrop-blur-xl border-b border-white/10">
+  <div class="font-serif-jp text-headline-lg tracking-widest text-primary glow-primary">Yamada</div>
+  <nav class="hidden md:flex gap-gutter items-center">
+    <a class="text-primary border-b-2 border-primary pb-1 font-label-md hover:text-primary transition-all duration-500 hover:scale-105" href="#top">关于</a>
+    <a class="text-on-surface-variant font-label-md hover:text-primary transition-all duration-500 hover:scale-105" href="#features">功能</a>
+    <a class="text-on-surface-variant font-label-md hover:text-primary transition-all duration-500 hover:scale-105" href="https://github.com/zhangzhao-gg/alis" target="_blank">GitHub</a>
+  </nav>
+  <a href="https://github.com/zhangzhao-gg/alis" target="_blank" class="px-6 py-2 glass-panel rounded-full text-primary font-label-md hover:scale-105 transition-all duration-300">
+    带她回家
+  </a>
+</header>
+
+<!-- Hero Section -->
+<main class="relative min-h-screen flex items-center justify-center px-margin-mobile md:px-margin-desktop">
+  <!-- Atmospheric Background Layer -->
+  <div class="absolute inset-0 z-0">
+    <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('./images/hero-bg.jpg')"></div>
+    <div class="absolute inset-0 bg-background/60 backdrop-blur-[2px]"></div>
+    <!-- Radial Halo Glow -->
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 blur-[120px] rounded-full animate-pulse-slow"></div>
+  </div>
+
+  <div class="relative z-10 max-w-3xl text-center flex flex-col items-center space-y-8">
+    <div class="w-32 h-32 rounded-full border border-white/10 p-1 mb-8">
+      <img alt="田山小姐" class="w-full h-full object-cover rounded-full grayscale hover:grayscale-0 transition-all duration-1000 cursor-pointer avatar-glow" src="./平静.png">
+    </div>
+    <h1 class="font-display text-display text-primary glow-primary">
+      后门的晚风，<br>住在你的电脑里。
+    </h1>
+    <p class="font-body-lg text-on-surface-variant max-w-xl mx-auto leading-relaxed">
+      一个住在 Mac 里的桌面 AI 角色。白天是收银台前温和得体的山田，夜晚卸下工服，躲在超市后门抽烟——短句、留白、一点毒舌，和藏在冷淡下面的温柔。
+    </p>
+    <div class="flex flex-col md:flex-row gap-6 mt-12">
+      <a class="px-10 py-4 glass-panel rounded-full text-primary font-label-md tracking-[0.2em] hover:scale-105 active:scale-95 transition-all duration-300" href="https://github.com/zhangzhao-gg/alis" target="_blank">
+        带她回家 (MAC)
+      </a>
+      <a class="px-10 py-4 text-on-surface-variant font-label-md tracking-[0.2em] border border-transparent hover:border-white/10 rounded-full transition-all duration-500" href="#features">
+        了解更多
+      </a>
+    </div>
+  </div>
+
+  <!-- Status Indicator -->
+  <div class="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-3 opacity-40">
+    <div class="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+    <span class="font-label-sm uppercase tracking-[0.3em]">在超市后门抽烟...</span>
+  </div>
+</main>
+
+<!-- Content Canvas -->
+<section id="features" class="relative py-margin-desktop z-10">
+  <div class="max-w-container-max mx-auto px-margin-desktop">
+
+    <!-- Product Screenshot -->
+    <div class="mb-48 text-center">
+      <img src="./screenshot.png" alt="田山小姐 · 应用截图" class="w-full max-w-4xl mx-auto rounded-2xl border border-white/5 shadow-2xl shadow-black/60">
+    </div>
+
+    <!-- Day / Night Duality -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-gutter mb-48">
+      <div class="glass-panel rounded-2xl p-12 space-y-4">
+        <span class="font-label-sm text-on-surface-variant tracking-widest uppercase block">Daytime · 白天</span>
+        <h3 class="font-display text-headline-lg">山田</h3>
+        <p class="text-on-surface-variant font-body-lg leading-relaxed">
+          收银台前温和得体，礼貌、克制、把每件事处理得妥妥当当。这副面孔世界都见过。
+        </p>
+      </div>
+      <div class="glass-panel rounded-2xl p-12 space-y-4 border border-primary/10">
+        <span class="font-label-sm text-primary tracking-widest uppercase block">Nighttime · 夜晚</span>
+        <h3 class="font-display text-headline-lg text-primary glow-primary">田山</h3>
+        <p class="text-on-surface-variant font-body-lg leading-relaxed">
+          卸下工服，躲在超市后门的纸箱堆旁抽烟。烟雾、晚风、漫不经心的毒舌——这才是她真正的自留地。
+        </p>
+      </div>
+    </div>
+
+    <!-- Bento Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-gutter mb-48">
+      <div class="md:col-span-8 group">
+        <div class="glass-panel h-full rounded-2xl p-12 overflow-hidden relative transition-all duration-1000 opacity-100">
+          <div class="relative z-10">
+            <span class="font-label-sm text-primary tracking-widest uppercase mb-4 block">Long-term Memory</span>
+            <h2 class="font-display text-headline-lg mb-6">她会记住你说过的话</h2>
+            <p class="text-on-surface-variant font-body-lg max-w-lg mb-12">
+              每次对话都沉淀成碎片，安静地留在你的电脑里。下次开口，她自然带回来——不用提醒，也不需要重新介绍自己。
+            </p>
+            <div class="flex items-center gap-4 text-primary group-hover:gap-6 transition-all duration-500 cursor-pointer">
+              <a href="https://github.com/zhangzhao-gg/alis" target="_blank" class="font-label-md">她记得什么</a>
+              <span class="material-symbols-outlined">arrow_forward</span>
+            </div>
+          </div>
+          <!-- Background Graphic Decoration -->
+          <div class="absolute right-[-10%] bottom-[-10%] opacity-10 group-hover:opacity-20 transition-opacity duration-1000">
+            <span class="material-symbols-outlined text-[300px]">psychology</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="md:col-span-4">
+        <div class="glass-panel h-full rounded-2xl overflow-hidden relative group transition-all duration-1000 opacity-100">
+          <div class="absolute inset-0 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all duration-1000 group-hover:scale-110" style="background-image: url('./images/backdoor-bg.jpg')"></div>
+          <div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+          <div class="absolute bottom-8 left-8 right-8">
+            <h3 class="font-display text-headline-md text-primary mb-2">后门的质感</h3>
+            <p class="text-on-surface-variant font-label-sm leading-relaxed">
+              烟雾、晚风、便利店冷光。我们用克制的界面，留住那种松弛的停顿感。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice Feature -->
+    <div class="max-w-3xl mx-auto mb-48 space-y-12">
+      <div class="text-center space-y-4">
+        <span class="font-label-sm text-primary tracking-widest uppercase block">Realtime Voice</span>
+        <h2 class="font-display text-headline-lg">她在听，不是在等</h2>
+        <p class="text-on-surface-variant font-body-lg max-w-lg mx-auto leading-relaxed">
+          进入语音模式，麦克风一直开着。她说话时你开口——她立刻停下来，听你说。不用等她说完，不用喊"停"，就像真实的对话里本该有的那样。
+        </p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-panel rounded-xl p-8 space-y-3">
+          <span class="material-symbols-outlined text-primary text-[32px]">mic</span>
+          <h4 class="font-label-md text-on-surface uppercase tracking-widest">实时识别</h4>
+          <p class="text-on-surface-variant font-body-md leading-relaxed">你说的话即时转成文字，没有按键，没有等待。</p>
+        </div>
+        <div class="glass-panel rounded-xl p-8 space-y-3 border border-primary/10">
+          <span class="material-symbols-outlined text-primary text-[32px]">hearing</span>
+          <h4 class="font-label-md text-primary uppercase tracking-widest">Barge-in</h4>
+          <p class="text-on-surface-variant font-body-md leading-relaxed">她说话时你打断，她就停。主动权在你，不在她。</p>
+        </div>
+        <div class="glass-panel rounded-xl p-8 space-y-3">
+          <span class="material-symbols-outlined text-primary text-[32px]">volume_up</span>
+          <h4 class="font-label-md text-on-surface uppercase tracking-widest">独立音轨</h4>
+          <p class="text-on-surface-variant font-body-md leading-relaxed">她的声音走独立媒体层，不把耳机切到通话模式。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conversational Stream -->
+    <div class="max-w-3xl mx-auto space-y-24 mb-48">
+      <div class="text-center space-y-4">
+        <span class="font-label-sm text-primary tracking-widest uppercase block">Lyric Stream</span>
+        <h2 class="font-display text-headline-lg">对话像歌词一样浮现</h2>
+      </div>
+
+      <div class="lyric-gradient space-y-12">
+        <div class="text-left space-y-2 opacity-40">
+          <span class="font-label-sm uppercase tracking-widest">YOU</span>
+          <p class="font-body-lg italic">"那盐渍柠檬可乐，你是怎么发现的？"</p>
+        </div>
+        <div class="text-right space-y-2">
+          <span class="font-label-sm uppercase tracking-widest text-primary">田山</span>
+          <div class="flex justify-end">
+            <p class="font-body-lg max-w-md text-primary-container leading-relaxed border-b border-primary/20 pb-4">
+              "下班路上看见了，觉得名字有点可笑，就买了。"
+            </p>
+          </div>
+        </div>
+        <div class="text-left space-y-2 opacity-60">
+          <span class="font-label-sm uppercase tracking-widest">YOU</span>
+          <p class="font-body-lg">"好喝吗？"</p>
+        </div>
+        <div class="text-right space-y-2">
+          <span class="font-label-sm uppercase tracking-widest text-primary">田山</span>
+          <div class="flex justify-end">
+            <p class="font-body-lg max-w-md text-primary-container leading-relaxed border-b border-primary/20 pb-4">
+              "还行。反正比熬夜强多了。"
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-center pt-12">
+        <div class="w-px h-24 bg-gradient-to-b from-primary to-transparent opacity-20"></div>
+      </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="glass-panel rounded-2xl p-margin-desktop text-center space-y-8 relative overflow-hidden transition-all duration-1000 opacity-100">
+      <div class="relative z-10">
+        <h2 class="font-display text-display glow-primary mb-4">开始一段对话。</h2>
+        <p class="text-on-surface-variant font-body-lg max-w-xl mx-auto">
+          深夜想随便说点什么的时候，开着就行。
+        </p>
+        <div class="mt-12">
+          <a href="https://github.com/zhangzhao-gg/alis" target="_blank" class="inline-block bg-primary text-on-primary px-12 py-5 rounded-full font-label-md tracking-widest hover:scale-105 transition-all shadow-2xl shadow-primary/20">
+            带她回家 · MAC
+          </a>
+        </div>
+      </div>
+      <div class="absolute inset-0 bg-primary/5 blur-[100px] -z-0"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="w-full py-margin-desktop px-margin-desktop flex flex-col md:flex-row justify-between items-center opacity-60 border-t border-white/5 bg-background">
+  <div class="flex flex-col items-center md:items-start gap-2 mb-8 md:mb-0">
+    <div class="font-display text-headline-md text-on-surface-variant opacity-40">田山小姐</div>
+    <p class="font-body-md text-on-surface-variant">© 2026 田山小姐 · A quiet corner.</p>
+  </div>
+    <div class="flex gap-12">
+      <div class="flex flex-col gap-3">
+        <span class="font-label-sm text-primary uppercase tracking-widest">PRODUCT</span>
+        <a class="text-on-surface-variant hover:text-primary transition-colors duration-500 font-body-md" href="https://github.com/zhangzhao-gg/alis" target="_blank">Download</a>
+      </div>
+      <div class="flex flex-col gap-3">
+        <span class="font-label-sm text-primary uppercase tracking-widest">SOCIAL</span>
+        <a class="text-on-surface-variant hover:text-primary transition-colors duration-500 font-body-md" href="https://github.com/zhangzhao-gg/alis" target="_blank">GitHub</a>
+      </div>
+      <div class="flex flex-col gap-3">
+        <span class="font-label-sm text-primary uppercase tracking-widest">CONTACT</span>
+        <span class="text-on-surface-variant font-body-md">微信 · Violet6i6</span>
+      </div>
+    </div>
+  </div>
+  <div class="w-full text-center mt-8 pt-6 border-t border-white/5">
+    <a href="https://beian.miit.gov.cn/" target="_blank" class="text-on-surface-variant font-label-sm opacity-40 hover:opacity-60 transition-opacity duration-300">苏ICP备2025153832号-3</a>
+  </div>
+</footer>
+
+<script>
+  // Scroll Fade Effect
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('opacity-100');
+        entry.target.classList.remove('opacity-0', 'translate-y-10');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.glass-panel').forEach(el => {
+    el.classList.add('transition-all', 'duration-1000', 'opacity-0', 'translate-y-10');
+    observer.observe(el);
+  });
+</script>
+
+</body>
+</html>
