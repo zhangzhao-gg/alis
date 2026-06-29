@@ -185,7 +185,7 @@ export function InputBar() {
 
     if (!content || !settings.apiKey || (currentStatus !== "idle" && !isVoiceRecording && !isVoiceSpeaking)) return;
     const shouldSpeakReply = source === "voice" || settings.voiceEnabled;
-    const delayReplyDisplay = source === "voice" && shouldSpeakReply && !!settings.ttsApiKey && !!settings.ttsResourceId;
+    const delayReplyDisplay = shouldSpeakReply && !!settings.ttsApiKey && !!settings.ttsResourceId;
 
     setAsrHint("");
 
