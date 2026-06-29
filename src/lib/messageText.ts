@@ -15,6 +15,8 @@ function normalizeText(text: string) {
   return text
     .replace(/【/g, "[")
     .replace(/】/g, "]")
+    .replace(/［/g, "[")
+    .replace(/］/g, "]")
     .replace(/（/g, "(")
     .replace(/）/g, ")");
 }
