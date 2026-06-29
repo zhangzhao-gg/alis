@@ -173,9 +173,9 @@
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 blur-[120px] rounded-full animate-pulse-slow"></div>
   </div>
 
-  <div class="relative z-10 max-w-4xl text-center flex flex-col items-center space-y-8">
-    <div class="w-full mb-4">
-      <img alt="田山小姐 · 产品截图" class="w-full rounded-2xl border border-white/5 shadow-2xl shadow-black/60 hover:scale-[1.01] transition-all duration-700" src="./screenshot.png">
+  <div class="relative z-10 max-w-3xl text-center flex flex-col items-center space-y-8">
+    <div class="w-32 h-32 rounded-full border border-white/10 p-1 mb-8">
+      <img alt="田山小姐" class="w-full h-full object-cover rounded-full grayscale hover:grayscale-0 transition-all duration-1000 cursor-pointer avatar-glow" src="./平静.png">
     </div>
     <h1 class="font-display text-display text-primary glow-primary">
       后门的晚风，<br>住在你的电脑里。
@@ -205,80 +205,47 @@
   <div class="max-w-container-max mx-auto px-margin-desktop">
 
     <!-- Day / Night Duality -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-gutter mb-48">
-      <div class="glass-panel rounded-2xl p-12 space-y-4">
-        <span class="font-label-sm text-on-surface-variant tracking-widest uppercase block">Daytime · 白天</span>
-        <h3 class="font-display text-headline-lg">山田</h3>
-        <p class="text-on-surface-variant font-body-lg leading-relaxed">
-          收银台前温和得体，礼貌、克制、把每件事处理得妥妥当当。这副面孔世界都见过。
-        </p>
-      </div>
-      <div class="glass-panel rounded-2xl p-12 space-y-4 border border-primary/10">
-        <span class="font-label-sm text-primary tracking-widest uppercase block">Nighttime · 夜晚</span>
-        <h3 class="font-display text-headline-lg text-primary glow-primary">田山</h3>
-        <p class="text-on-surface-variant font-body-lg leading-relaxed">
-          卸下工服，躲在超市后门的纸箱堆旁抽烟。烟雾、晚风、漫不经心的毒舌——这才是她真正的自留地。
-        </p>
+    <div class="max-w-3xl mx-auto mb-48">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-24">
+        <div class="space-y-4">
+          <span class="font-label-sm text-on-surface-variant tracking-widest uppercase block">Daytime · 白天</span>
+          <h3 class="font-display text-headline-lg">山田</h3>
+          <p class="text-on-surface-variant font-body-lg leading-relaxed">
+            收银台前温和得体，礼貌、克制、把每件事处理得妥妥当当。这副面孔世界都见过。
+          </p>
+        </div>
+        <div class="space-y-4">
+          <span class="font-label-sm text-primary tracking-widest uppercase block">Nighttime · 夜晚</span>
+          <h3 class="font-display text-headline-lg text-primary glow-primary">田山</h3>
+          <p class="text-on-surface-variant font-body-lg leading-relaxed">
+            卸下工服，躲在超市后门的纸箱堆旁抽烟。烟雾、晚风、漫不经心的毒舌——这才是她真正的自留地。
+          </p>
+        </div>
       </div>
     </div>
 
-    <!-- Bento Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-gutter mb-48">
-      <div class="md:col-span-8 group">
-        <div class="glass-panel h-full rounded-2xl p-12 overflow-hidden relative transition-all duration-1000 opacity-100">
-          <div class="relative z-10">
-            <span class="font-label-sm text-primary tracking-widest uppercase mb-4 block">Long-term Memory</span>
-            <h2 class="font-display text-headline-lg mb-6">她会记住你说过的话</h2>
-            <p class="text-on-surface-variant font-body-lg max-w-lg mb-12">
-              每次对话都沉淀成碎片，安静地留在你的电脑里。下次开口，她自然带回来——不用提醒，也不需要重新介绍自己。
-            </p>
-            <div class="flex items-center gap-4 text-primary group-hover:gap-6 transition-all duration-500 cursor-pointer">
-              <a href="https://github.com/zhangzhao-gg/alis" target="_blank" class="font-label-md">她记得什么</a>
-              <span class="material-symbols-outlined">arrow_forward</span>
-            </div>
-          </div>
-          <!-- Background Graphic Decoration -->
-          <div class="absolute right-[-10%] bottom-[-10%] opacity-10 group-hover:opacity-20 transition-opacity duration-1000">
-            <span class="material-symbols-outlined text-[300px]">psychology</span>
-          </div>
-        </div>
-      </div>
+    <!-- Screenshot -->
+    <div class="max-w-4xl mx-auto mb-48">
+      <img src="./screenshot.png" alt="田山小姐 · 应用截图" class="w-full rounded-2xl border border-white/5 shadow-2xl shadow-black/60">
+    </div>
 
-      <div class="md:col-span-4">
-        <div class="glass-panel h-full rounded-2xl overflow-hidden relative group transition-all duration-1000 opacity-100">
-          <div class="absolute inset-0 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all duration-1000 group-hover:scale-110" style="background-image: url('./images/backdoor-bg.jpg')"></div>
-          <div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
-          <div class="absolute bottom-8 left-8 right-8">
-            <h3 class="font-display text-headline-md text-primary mb-2">后门的质感</h3>
-            <p class="text-on-surface-variant font-label-sm leading-relaxed">
-              烟雾、晚风、便利店冷光。我们用克制的界面，留住那种松弛的停顿感。
-            </p>
-          </div>
-        </div>
-      </div>
+    <!-- Memory -->
+    <div class="max-w-3xl mx-auto mb-48 space-y-4">
+      <span class="font-label-sm text-primary tracking-widest uppercase block">Long-term Memory</span>
+      <h2 class="font-display text-headline-lg">她会记住你说过的话</h2>
+      <p class="text-on-surface-variant font-body-lg leading-relaxed">
+        每次对话都沉淀成碎片，安静地留在你的电脑里。下次开口，她自然带回来——不用提醒，也不需要重新介绍自己。
+      </p>
     </div>
 
     <!-- Voice Feature -->
-    <div class="max-w-3xl mx-auto mb-48 space-y-12">
-      <div class="text-center space-y-4">
-        <span class="font-label-sm text-primary tracking-widest uppercase block">Two Ways to Talk</span>
-        <h2 class="font-display text-headline-lg">怎么舒服怎么来</h2>
-        <p class="text-on-surface-variant font-body-lg max-w-lg mx-auto leading-relaxed">
-          想打字就打字，想说话就说话。两种方式随时切换，不用设置，不用解释。
-        </p>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="glass-panel rounded-xl p-8 space-y-3">
-          <span class="material-symbols-outlined text-primary text-[32px]">chat</span>
-          <h4 class="font-label-md text-on-surface uppercase tracking-widest">文字聊天</h4>
-          <p class="text-on-surface-variant font-body-md leading-relaxed">打几个字，或者发一段话。她的回复像歌词一样浮在屏幕上，慢慢亮起来。</p>
-        </div>
-        <div class="glass-panel rounded-xl p-8 space-y-3 border border-primary/10">
-          <span class="material-symbols-outlined text-primary text-[32px]">mic</span>
-          <h4 class="font-label-md text-primary uppercase tracking-widest">实时语音</h4>
-          <p class="text-on-surface-variant font-body-md leading-relaxed">直接开口说。她说话时你打断，她就停——不用等，不用喊停，就像真实对话里本该有的那样。</p>
-        </div>
-      </div>
+    <div class="max-w-3xl mx-auto mb-48 space-y-4">
+      <span class="font-label-sm text-primary tracking-widest uppercase block">Two Ways to Talk</span>
+      <h2 class="font-display text-headline-lg">怎么舒服怎么来</h2>
+      <p class="text-on-surface-variant font-body-lg leading-relaxed">
+        想打字就打字，想说话就说话。两种方式随时切换，不用设置，不用解释。<br>
+        直接开口说话时，她说话时你打断，她就停——不用等，不用喊停，就像真实对话里本该有的那样。
+      </p>
     </div>
 
     <!-- Conversational Stream -->
