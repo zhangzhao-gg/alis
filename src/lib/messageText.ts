@@ -41,7 +41,10 @@ export function getEmotion(text: string): Emotion | null {
 }
 
 export function getSpokenText(text: string) {
-  return stripBracketedText(parseReply(text).ja).trim();
+  const ja = stripBracketedText(parseReply(text).ja).trim();
+  // 如果 ja 字段没有假名，说明模型写错了语言，跳过 TTS
+  const hasKana = /[぀-ゟ゠-ヿ]/.test(ja);
+  return hasKana ? ja : "";
 }
 
 export function getDisplayText(text: string, language: DisplayLanguage) {
