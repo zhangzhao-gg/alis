@@ -185,7 +185,6 @@ export function InputBar() {
 
     if (!content || !settings.apiKey || (currentStatus !== "idle" && !isVoiceRecording && !isVoiceSpeaking)) return;
     const shouldSpeakReply = source === "voice" || settings.voiceEnabled;
-    const delayReplyDisplay = shouldSpeakReply && !!settings.ttsApiKey && !!settings.ttsResourceId;
 
     setAsrHint("");
 
@@ -223,18 +222,6 @@ export function InputBar() {
       ],
       onChunk: (chunk) => {
         accumulated += chunk;
-        if (delayReplyDisplay) return;
-
-        // ja|zh|emotion 格式：| 出现前是日文流，不展示；| 出现后取 displayLanguage 对应部分
-        if (!accumulated.includes("|")) return;
-        const displayText = getDisplayText(accumulated, useUIStore.getState().displayLanguage);
-        if (!displayText) return;
-
-        useChatStore.setState((s) => ({
-          messages: s.messages.map((m) =>
-            m.id === aliceId ? { ...m, text: displayText } : m
-          ),
-        }));
       },
       onDone: async () => {
         const finalMsg = {
@@ -257,22 +244,16 @@ export function InputBar() {
         try {
           await speakReply(
             getSpokenText(accumulated),
-            delayReplyDisplay ? () => revealReplyText(aliceId, accumulated) : undefined,
+            () => revealReplyText(aliceId, accumulated),
             source === "voice"
           );
         } catch (err) {
           debugError("[TTS] error", errorMessage(err, "TTS failed"));
           setAsrHint(errorMessage(err, "TTS failed"));
-          setAliceMessageText(aliceId, accumulated);
         }
-        if (delayReplyDisplay) {
-          if (!useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
-            setAliceMessageText(aliceId, accumulated);
-          }
-        } else {
-          // 文本模式：流结束后用 getDisplayText 刷最终展示文本
-          const displayText = getDisplayText(accumulated, useUIStore.getState().displayLanguage);
-          setAliceMessageText(aliceId, displayText || accumulated);
+        // TTS 未开启或失败时 onStart 不会触发，确保文字最终显示
+        if (!useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
+          await revealReplyText(aliceId, accumulated);
         }
         setStatus(voiceModeRef.current ? "recording" : "idle");
       },
@@ -473,15 +454,9 @@ function setAliceMessageText(id: string, text: string) {
 async function revealReplyText(id: string, rawText: string) {
   const language = useUIStore.getState().displayLanguage;
   const displayText = getDisplayText(rawText, language);
-  let tempo = createTypingTempo();
+  const tempo = createTypingTempo();
 
-  if (!displayText) {
-    setAliceMessageText(id, rawText);
-    return;
-  }
-
-  await revealPlainText(id, displayText, tempo);
-
+  await revealPlainText(id, displayText || rawText, tempo);
   setAliceMessageText(id, rawText);
 }
 

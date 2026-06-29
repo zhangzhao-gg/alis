@@ -29,6 +29,7 @@ export async function streamChat({
   const payload = {
     model,
     stream: true,
+    response_format: { type: "json_object" },
     messages: [
       ...systemPrompts
         .map((content) => content.trim())
