@@ -221,9 +221,14 @@ export function InputBar() {
         accumulated += chunk;
         if (delayReplyDisplay) return;
 
+        // ja|zh|emotion 格式：| 出现前是日文流，不展示；| 出现后取 displayLanguage 对应部分
+        if (!accumulated.includes("|")) return;
+        const displayText = getDisplayText(accumulated, useUIStore.getState().displayLanguage);
+        if (!displayText) return;
+
         useChatStore.setState((s) => ({
           messages: s.messages.map((m) =>
-            m.id === aliceId ? { ...m, text: accumulated } : m
+            m.id === aliceId ? { ...m, text: displayText } : m
           ),
         }));
       },
@@ -255,8 +260,14 @@ export function InputBar() {
           setAsrHint(errorMessage(err, "TTS failed"));
           setAliceMessageText(aliceId, accumulated);
         }
-        if (delayReplyDisplay && !useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
-          setAliceMessageText(aliceId, accumulated);
+        if (delayReplyDisplay) {
+          if (!useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
+            setAliceMessageText(aliceId, accumulated);
+          }
+        } else {
+          // 文本模式：流结束后用 getDisplayText 刷最终展示文本
+          const displayText = getDisplayText(accumulated, useUIStore.getState().displayLanguage);
+          setAliceMessageText(aliceId, displayText || accumulated);
         }
         setStatus(voiceModeRef.current ? "recording" : "idle");
       },
