@@ -23,17 +23,12 @@ const VOICE_BY_STATUS: Record<CharacterStatus, VoiceConfig> = {
     speaker: "TODO: 填写上班状态 speaker",
   },
 
-  // 夜晚后门：田山本我音色（默认音色，与 Settings 里保持一致）
+  // 夜晚后门 & 深夜归家：共用田山本我音色
   smoking: {
     resourceId: "seed-icl-2.0",
-    speaker: "TODO: 填写后门状态 speaker",
+    speaker: "TODO: 填写田山音色 speaker",
   },
-
-  // 深夜归家：休息状态音色
-  resting: {
-    resourceId: "seed-icl-2.0",
-    speaker: "TODO: 填写休息状态 speaker",
-  },
+  get resting() { return this.smoking; },
 };
 
 // ============================================================
