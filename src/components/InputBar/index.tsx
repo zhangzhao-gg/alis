@@ -11,7 +11,8 @@ import { streamChat } from "@/lib/ai";
 import { saveMessage } from "@/lib/db";
 import { tickAndDistill } from "@/lib/memory";
 import { playTts, type TtsHandle } from "@/lib/tts";
-import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt } from "@/lib/persona";
+import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt, getCharacterStatus } from "@/lib/persona";
+import { getVoiceConfig } from "@/lib/characterVoice";
 import { getDisplayText, getSpokenText, getEmotion } from "@/lib/messageText";
 import { debugError, debugLog } from "@/lib/debugLog";
 import {
@@ -108,7 +109,9 @@ export function InputBar() {
   }, [rotateAsrSession]);
 
   const speakReply = useCallback(async (reply: string, onPlaybackStart?: () => void, force = false) => {
-    const { voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker } = useSettingsStore.getState();
+    const { voiceEnabled, ttsApiKey } = useSettingsStore.getState();
+    const voiceConfig = getVoiceConfig(getCharacterStatus());
+    const { resourceId: ttsResourceId, speaker: ttsSpeaker } = voiceConfig;
     const spokenText = reply.trim();
     if (!spokenText) {
       debugLog("[TTS] skipped: empty spoken text");
