@@ -94,10 +94,11 @@ async fn synthesize_mp3(request: &TtsRequest) -> Result<Vec<u8>, String> {
     Ok(audio)
 }
 
-/// 合成 + 用 VoiceProcessingIO 播放，阻塞到播放完成
+/// 第一步：合成 MP3 + 解码 + 填充 ring buffer（不出声）
+/// 前端调用后可同步触发打字机动画，再调 tts_start 出声
 #[tauri::command]
-pub async fn tts_play(request: TtsRequest) -> Result<(), String> {
-    println!("[TTS] tts_play: chars={}", request.text.chars().count());
+pub async fn tts_prepare(request: TtsRequest) -> Result<(), String> {
+    println!("[TTS] tts_prepare: chars={}", request.text.chars().count());
 
     // 1. 合成 MP3
     let mp3_bytes = synthesize_mp3(&request).await?;
@@ -111,25 +112,33 @@ pub async fn tts_play(request: TtsRequest) -> Result<(), String> {
         return Err("audio engine start failed".to_string());
     }
 
-    // 3. 写临时文件
+    // 3. 写临时文件 → 解码 → 填充 ring buffer
     let temp_path = std::env::temp_dir().join(format!("alis_tts_{}.mp3", uuid::Uuid::new_v4()));
     std::fs::write(&temp_path, &mp3_bytes)
         .map_err(|e| format!("write temp file failed: {e}"))?;
 
-    // 4. 播放
     let duration = audio_engine::play_file(temp_path.to_str().unwrap())?;
-    println!("[TTS] playing duration: {:.2}s", duration);
+    println!("[TTS] ring buffer filled, duration: {:.2}s", duration);
 
-    // 5. 等待播放完成（轮询）
+    // 4. PCM 已在 ring buffer，临时文件可删
+    let _ = std::fs::remove_file(&temp_path);
+
+    Ok(())
+}
+
+/// 第二步：设置 _playing=true 立即出声，阻塞到播放完成
+#[tauri::command]
+pub async fn tts_start() -> Result<(), String> {
+    println!("[TTS] tts_start: setting _playing=true");
+    audio_engine::start_playback();
+
+    // 轮询直到播放完成
     loop {
         if !audio_engine::is_playing() {
             break;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-
-    // 6. 删除临时文件
-    let _ = std::fs::remove_file(&temp_path);
 
     println!("[TTS] playback finished");
     Ok(())

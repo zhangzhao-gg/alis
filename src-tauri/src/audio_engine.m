@@ -403,7 +403,8 @@ double audio_engine_play_file(const char *path) {
             return -1;
         }
 
-        // 写入 ring buffer
+        // 写入 ring buffer（不在此处设置 _playing，由 audio_engine_start_playback 显式启动）
+        // 这样 tts_prepare 填充 ring buffer 后，前端可在出声前同步触发打字机
         float *samples = outBuffer.floatChannelData[0];
         UInt32 sampleCount = outBuffer.frameLength;
         double duration = (double)sampleCount / 16000.0;
@@ -415,10 +416,9 @@ double audio_engine_play_file(const char *path) {
             _play_buffer[_play_write_pos] = samples[i];
             _play_write_pos = (_play_write_pos + 1) % PLAY_BUFFER_SIZE;
         }
-        _playing = true;
         [_play_lock unlock];
 
-        NSLog(@"[AUDIO_ENGINE] playing: %s, duration: %.2fs", path, duration);
+        NSLog(@"[AUDIO_ENGINE] buffer filled: %s, duration: %.2fs", path, duration);
         return duration;
     } @catch (NSException *exception) {
         NSLog(@"[AUDIO_ENGINE] play_file exception: %@", exception);
@@ -429,6 +429,15 @@ double audio_engine_play_file(const char *path) {
 
 bool audio_engine_is_playing(void) {
     return _playing;
+}
+
+// ===== 启动播放 =====
+// 由 tts_start 调用：ring buffer 已填充就绪后，设置 _playing=true 立即出声
+void audio_engine_start_playback(void) {
+    [_play_lock lock];
+    _playing = true;
+    [_play_lock unlock];
+    NSLog(@"[AUDIO_ENGINE] playback started");
 }
 
 void audio_engine_stop(void) {

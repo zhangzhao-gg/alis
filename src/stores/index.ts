@@ -115,6 +115,7 @@ export interface Settings {
   ttsApiKey: string;
   ttsResourceId: string;
   ttsSpeaker: string;
+  debugOverlay: boolean;
 }
 
 interface SettingsState extends Settings {
@@ -137,6 +138,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   ttsApiKey: "",
   ttsResourceId: DEFAULT_TTS_RESOURCE_ID,
   ttsSpeaker: "zh_female_vv_uranus_bigtts",
+  debugOverlay: false,
   update: (patch) =>
     set((state) => ({
       ...state,
@@ -146,5 +148,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       ttsApiKey: patch.ttsApiKey ?? state.ttsApiKey,
       ttsResourceId: normalizeTtsResourceId(patch.ttsResourceId, state.ttsResourceId),
       ttsSpeaker: patch.ttsSpeaker ?? state.ttsSpeaker,
+      debugOverlay: patch.debugOverlay ?? state.debugOverlay,
     })),
 }));

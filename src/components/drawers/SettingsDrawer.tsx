@@ -31,8 +31,8 @@ const CLEAR_COPY = {
 
 export function SettingsDrawer() {
   const [draft, setDraft] = useState<Settings>(() => {
-    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker } = useSettingsStore.getState();
-    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker };
+    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, debugOverlay } = useSettingsStore.getState();
+    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, debugOverlay };
   });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [pendingClear, setPendingClear] = useState<PendingClear>(null);
@@ -61,6 +61,12 @@ export function SettingsDrawer() {
 
   const toggleTtsReply = async () => {
     const next = { ...draft, voiceEnabled: !draft.voiceEnabled };
+    setDraft(next);
+    await persist(next);
+  };
+
+  const toggleDebugOverlay = async () => {
+    const next = { ...draft, debugOverlay: !draft.debugOverlay };
     setDraft(next);
     await persist(next);
   };
@@ -148,6 +154,27 @@ export function SettingsDrawer() {
             </button>
             <span className="text-label-sm text-outline">
               {draft.voiceEnabled ? "ON" : "OFF"}
+            </span>
+          </div>
+        </Field>
+
+        {/* Debug 日志窗口开关 */}
+        <Field label="Debug Overlay">
+          <div className="flex h-9 items-center gap-3">
+            <button
+              onClick={toggleDebugOverlay}
+              className={`relative h-5 w-10 rounded-full transition-colors ${
+                draft.debugOverlay ? "bg-primary" : "bg-outline-variant"
+              }`}
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-on-primary transition-transform ${
+                  draft.debugOverlay ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <span className="text-label-sm text-outline">
+              {draft.debugOverlay ? "ON" : "OFF"}
             </span>
           </div>
         </Field>

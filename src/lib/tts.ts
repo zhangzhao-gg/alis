@@ -24,25 +24,35 @@ export interface TtsHandle {
 
 export function playTts({ apiKey, resourceId, speaker, text, onStart }: PlayTtsOptions): TtsHandle {
   let cancelled = false;
+  let stage: "prepare" | "playing" | "done" = "prepare";
 
   const promise = new Promise<void>((resolve) => {
     (async () => {
-      debugLog("[TTS] invoke tts_play", { chars: text.length, resourceId, speaker });
+      debugLog("[TTS] invoke tts_prepare", { chars: text.length, resourceId, speaker });
 
-      onStart?.();
-
-      await invoke("tts_play", {
+      // 1. 合成 + 解码 + 填充 ring buffer（不出声）
+      await invoke("tts_prepare", {
         request: { apiKey, resourceId, speaker, text },
       }).catch((err) => {
-        debugError("[TTS] tts_play error", err instanceof Error ? err.message : String(err));
+        debugError("[TTS] tts_prepare error", err instanceof Error ? err.message : String(err));
       });
 
       if (cancelled) {
-        debugLog("[TTS] cancelled");
+        debugLog("[TTS] cancelled before playback");
         resolve();
         return;
       }
 
+      // 2. ring buffer 已就绪 → 通知前端开始打字机（此时声音尚未出）
+      onStart?.();
+
+      // 3. 设置 _playing=true 立即出声，阻塞到播放完成
+      stage = "playing";
+      await invoke("tts_start").catch((err) => {
+        debugError("[TTS] tts_start error", err instanceof Error ? err.message : String(err));
+      });
+
+      stage = "done";
       debugLog("[TTS] playback finished");
       resolve();
     })();
@@ -51,7 +61,7 @@ export function playTts({ apiKey, resourceId, speaker, text, onStart }: PlayTtsO
   const cancel = () => {
     if (cancelled) return;
     cancelled = true;
-    debugLog("[TTS] cancel requested");
+    debugLog("[TTS] cancel requested", { stage });
     invoke("tts_stop").catch(() => {});
   };
 

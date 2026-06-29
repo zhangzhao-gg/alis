@@ -18,6 +18,7 @@ import { getCharacterStatus } from "@/lib/persona";
 
 export default function App() {
   const setFragments = useMemoryStore((s) => s.setFragments);
+  const debugOverlay = useSettingsStore((s) => s.debugOverlay);
 
   // 启动时从 SQLite 恢复数据
   useEffect(() => {
@@ -60,7 +61,7 @@ export default function App() {
 
       {/* 底部输入区 */}
       <InputBar />
-      <DebugOverlay />
+      {debugOverlay && <DebugOverlay />}
 
       {/* 页脚 */}
       <footer className="fixed bottom-0 right-0 px-16 py-2 pointer-events-none z-50">

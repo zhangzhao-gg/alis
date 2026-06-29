@@ -18,6 +18,7 @@ extern "C" {
     fn audio_engine_stop_recording();
     fn audio_engine_play_file(path: *const i8) -> f64;
     fn audio_engine_is_playing() -> bool;
+    fn audio_engine_start_playback();
     fn audio_engine_stop();
     fn audio_engine_stop_engine();
 }
@@ -102,6 +103,11 @@ pub fn play_file(path: &str) -> Result<f64, String> {
 #[cfg(target_os = "macos")]
 pub fn is_playing() -> bool {
     unsafe { audio_engine_is_playing() }
+}
+
+#[cfg(target_os = "macos")]
+pub fn start_playback() {
+    unsafe { audio_engine_start_playback() }
 }
 
 #[cfg(target_os = "macos")]
