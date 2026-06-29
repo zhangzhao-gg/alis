@@ -1,15 +1,17 @@
 /**
- * [INPUT]: 依赖 stores/index 的 useChatStore
+ * [INPUT]: 依赖 stores/index 的 useChatStore；依赖 lib/messageText 的 getDisplayText
  * [OUTPUT]: 对外提供 NotebookDrawer 组件
  * [POS]: drawers/ 之聊天记录本抽屉，按会话分组展示历史
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useState } from "react";
-import { useChatStore } from "@/stores";
+import { useChatStore, useUIStore } from "@/stores";
+import { getDisplayText } from "@/lib/messageText";
 
 export function NotebookDrawer() {
   const messages = useChatStore((s) => s.messages);
+  const displayLanguage = useUIStore((s) => s.displayLanguage);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -20,8 +22,11 @@ export function NotebookDrawer() {
       return next;
     });
 
+  const getReadableText = (msg: { sender: string; text: string }) =>
+    msg.sender === "alice" ? (getDisplayText(msg.text, displayLanguage) || msg.text) : msg.text;
+
   const filtered = query.trim()
-    ? messages.filter((m) => m.text.toLowerCase().includes(query.toLowerCase()))
+    ? messages.filter((m) => getReadableText(m).toLowerCase().includes(query.toLowerCase()))
     : messages;
 
   return (
@@ -79,7 +84,7 @@ export function NotebookDrawer() {
                         : "text-on-surface/60"
                     }`}
                   >
-                    {msg.text}
+                    {getReadableText(msg)}
                   </p>
                 </div>
               </article>
