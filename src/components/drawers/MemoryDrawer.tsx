@@ -18,7 +18,7 @@ const TYPE_LABELS: Record<MemoryType, string> = {
 const TYPE_ORDER: MemoryType[] = ["trait", "event", "feeling", "bond", "general"];
 
 export function MemoryDrawer() {
-  const { fragments, removeFragment } = useMemoryStore();
+  const { fragments, removeFragment, affinity } = useMemoryStore();
 
   const grouped = new Map<MemoryType, typeof fragments>();
   for (const f of fragments) {
@@ -30,9 +30,15 @@ export function MemoryDrawer() {
   return (
     <div className="flex flex-col h-full">
       <div className="p-10 pb-4">
-        <h2 className="text-headline-lg text-on-surface tracking-tight mb-2">Memory</h2>
+        <h2 className="serif-journal text-3xl text-tertiary italic tracking-tight flex items-center gap-3 mb-2">
+          <span className="material-symbols-outlined text-tertiary/40">psychology</span>
+          Memory
+        </h2>
         <p className="text-label-sm text-outline italic">
           Shifting thoughts and quiet fragments.
+        </p>
+        <p className="text-label-sm text-outline mt-3">
+          好感度 <span className="text-on-surface-variant">{affinity}</span> / 100
         </p>
       </div>
 

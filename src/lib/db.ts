@@ -93,6 +93,40 @@ export async function setMessageCounter(count: number) {
   );
 }
 
+export async function getAffinity(): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = ? LIMIT 1",
+    ["affinity"]
+  );
+  return rows[0] ? parseInt(rows[0].value, 10) : 30;
+}
+
+export async function setAffinity(value: number) {
+  const db = await getDb();
+  await db.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    ["affinity", String(value)]
+  );
+}
+
+export async function getAffinityCounter(): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = ? LIMIT 1",
+    ["affinity_counter"]
+  );
+  return rows[0] ? parseInt(rows[0].value, 10) : 0;
+}
+
+export async function setAffinityCounter(count: number) {
+  const db = await getDb();
+  await db.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    ["affinity_counter", String(count)]
+  );
+}
+
 export async function clearMessages() {
   const db = await getDb();
   await db.execute("DELETE FROM messages");

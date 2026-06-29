@@ -13,6 +13,7 @@ import { tickAndDistill } from "@/lib/memory";
 import { playTts, type TtsHandle } from "@/lib/tts";
 import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt, getCharacterStatus } from "@/lib/persona";
 import { getVoiceConfig } from "@/lib/characterVoice";
+import { tickAffinity } from "@/lib/affinity";
 import { getDisplayText, getSpokenText, getEmotion } from "@/lib/messageText";
 import { debugError, debugLog } from "@/lib/debugLog";
 import {
@@ -251,6 +252,7 @@ export function InputBar() {
         // 计数并按需触发记忆蒸馏（fire-and-forget，不阻塞回复流）
         const { apiKey, model } = useSettingsStore.getState();
         void tickAndDistill(useChatStore.getState().messages, apiKey, model);
+        void tickAffinity();
 
         try {
           await speakReply(

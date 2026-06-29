@@ -83,14 +83,18 @@ export const useUIStore = create<UIState>((set, get) => ({
 
 interface MemoryState {
   fragments: MemoryFragment[];
+  affinity: number;
   setFragments: (f: MemoryFragment[]) => void;
+  setAffinity: (n: number) => void;
   addFragment: (content: string, type?: MemoryType) => void;
   removeFragment: (id: string) => void;
 }
 
 export const useMemoryStore = create<MemoryState>((set) => ({
   fragments: [],
+  affinity: 30,
   setFragments: (fragments) => set({ fragments }),
+  setAffinity: (affinity) => set({ affinity }),
   addFragment: (content, type = "general") =>
     set((state) => ({
       fragments: [
@@ -115,6 +119,8 @@ export interface Settings {
   ttsApiKey: string;
   ttsResourceId: string;
   ttsSpeaker: string;
+  ttsWorkingResourceId: string;
+  ttsWorkingSpeaker: string;
   debugOverlay: boolean;
 }
 
@@ -138,6 +144,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   ttsApiKey: "",
   ttsResourceId: DEFAULT_TTS_RESOURCE_ID,
   ttsSpeaker: "zh_female_vv_uranus_bigtts",
+  ttsWorkingResourceId: DEFAULT_TTS_RESOURCE_ID,
+  ttsWorkingSpeaker: "",
   debugOverlay: false,
   update: (patch) =>
     set((state) => ({
@@ -148,6 +156,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       ttsApiKey: patch.ttsApiKey ?? state.ttsApiKey,
       ttsResourceId: normalizeTtsResourceId(patch.ttsResourceId, state.ttsResourceId),
       ttsSpeaker: patch.ttsSpeaker ?? state.ttsSpeaker,
+      ttsWorkingResourceId: normalizeTtsResourceId(patch.ttsWorkingResourceId, state.ttsWorkingResourceId),
+      ttsWorkingSpeaker: patch.ttsWorkingSpeaker ?? state.ttsWorkingSpeaker,
       debugOverlay: patch.debugOverlay ?? state.debugOverlay,
     })),
 }));

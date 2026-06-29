@@ -6,6 +6,7 @@
  */
 
 import type { MemoryFragment, MemoryType } from "@/stores";
+import { useMemoryStore } from "@/stores";
 
 const TYPE_LABELS: Record<MemoryType, string> = {
   trait:   "用户性格与习惯",
@@ -397,6 +398,12 @@ export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
 
   const status = getCharacterStatus();
   const persona = PERSONA_BY_STATUS[status];
-  const parts = [persona, "", "# 长期记忆", memoryText, "", `当前状态：${STATUS_LABEL[status]}`];
+  const affinity = useMemoryStore.getState().affinity;
+  const affinityPrompt = affinity <= 40
+    ? "当前好感度：陌生阶段。对眼前这个人保持距离，话不多，不主动，回应简短克制，不展露柔软，偶尔冷淡。"
+    : affinity <= 70
+    ? "当前好感度：熟悉阶段。对眼前这个人有一定好感，正常后门状态，偶尔调侃捉弄，话里带着漫不经心的温柔，但不会主动示弱。"
+    : "当前好感度：亲近阶段。对眼前这个人有真实好感，捉弄更多，偶尔不经意流露柔软，神秘感稍微松动，但绝不会彻底坦白。";
+  const parts = [persona, "", "# 长期记忆", memoryText, "", `当前状态：${STATUS_LABEL[status]}`, affinityPrompt];
   return parts.join("\n");
 }

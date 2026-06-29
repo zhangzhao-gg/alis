@@ -31,8 +31,8 @@ const CLEAR_COPY = {
 
 export function SettingsDrawer() {
   const [draft, setDraft] = useState<Settings>(() => {
-    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, debugOverlay } = useSettingsStore.getState();
-    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, debugOverlay };
+    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay } = useSettingsStore.getState();
+    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay };
   });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [pendingClear, setPendingClear] = useState<PendingClear>(null);
@@ -106,7 +106,10 @@ export function SettingsDrawer() {
   return (
     <div className="relative flex flex-col h-full overflow-y-auto">
       <div className="px-8 pt-7 pb-4">
-        <h2 className="text-headline-lg text-on-surface tracking-tight mb-1">Settings</h2>
+        <h2 className="serif-journal text-3xl text-tertiary italic tracking-tight flex items-center gap-3 mb-2">
+          <span className="material-symbols-outlined text-tertiary/40">settings</span>
+          Settings
+        </h2>
         <p className="text-label-sm text-outline italic">Configure connections.</p>
       </div>
 
@@ -205,6 +208,28 @@ export function SettingsDrawer() {
               type="text"
               value={draft.ttsSpeaker}
               onChange={(e) => updateDraft({ ttsSpeaker: e.target.value })}
+              className="input-line"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Working Resource ID">
+            <input
+              type="text"
+              value={draft.ttsWorkingResourceId}
+              onChange={(e) => updateDraft({ ttsWorkingResourceId: e.target.value })}
+              placeholder="seed-icl-2.0"
+              className="input-line"
+            />
+          </Field>
+
+          <Field label="Working Speaker">
+            <input
+              type="text"
+              value={draft.ttsWorkingSpeaker}
+              onChange={(e) => updateDraft({ ttsWorkingSpeaker: e.target.value })}
+              placeholder="上班状态音色（留空则用默认）"
               className="input-line"
             />
           </Field>
