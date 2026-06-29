@@ -7,10 +7,48 @@
 <meta name="description" content="一个会记住你、会接住疲惫、也会轻轻捉弄你的 macOS 桌面角色。">
 <link rel="icon" type="image/png" href="./平静.png">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<style id="local-fonts">
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url('./fonts/inter.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Noto Serif JP';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./fonts/noto-serif-jp-300.woff2') format('woff2');
+    unicode-range: U+5c71, U+7530;
+  }
+  @font-face {
+    font-family: 'Noto Serif JP';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./fonts/noto-serif-jp-400.woff2') format('woff2');
+    unicode-range: U+5c71, U+7530;
+  }
+  @font-face {
+    font-family: 'Playfair Display';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./fonts/playfair.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Playfair Display';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./fonts/playfair-italic.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+</style>
 <script id="tailwind-config">
   tailwind.config = {
     darkMode: "class",
@@ -145,9 +183,6 @@
     animation: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  .material-symbols-outlined {
-    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
-  }
 </style>
 </head>
 <body id="top" class="font-body-md text-body-md overflow-x-hidden">
@@ -380,6 +415,58 @@
       </div>
     </div>
 
+    <!-- Getting Started -->
+    <div class="max-w-3xl mx-auto mb-48">
+      <div class="space-y-4 mb-16">
+        <span class="font-playfair italic text-sm text-primary tracking-wide block">Getting Started</span>
+        <h2 class="font-display text-headline-lg">带她回家，四步就好</h2>
+      </div>
+
+      <div class="space-y-0">
+
+        <div class="flex gap-8 pb-12 border-b border-white/5">
+          <span class="font-playfair italic text-3xl text-primary/20 shrink-0 w-8">1</span>
+          <div class="space-y-2">
+            <h3 class="font-display text-headline-md">下载安装包</h3>
+            <p class="text-on-surface-variant font-body-lg leading-relaxed">
+              去 <a href="https://github.com/zhangzhao-gg/alis/releases/latest" target="_blank" class="text-primary/70 hover:text-primary transition-colors border-b border-primary/20">GitHub Releases</a> 下载 <code class="text-primary/60 text-sm bg-white/5 px-1.5 py-0.5 rounded">.dmg</code>。M1/M2/M3 选 <code class="text-primary/60 text-sm bg-white/5 px-1.5 py-0.5 rounded">aarch64</code>，Intel Mac 选 <code class="text-primary/60 text-sm bg-white/5 px-1.5 py-0.5 rounded">x64</code>。
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-8 py-12 border-b border-white/5">
+          <span class="font-playfair italic text-3xl text-primary/20 shrink-0 w-8">2</span>
+          <div class="space-y-2">
+            <h3 class="font-display text-headline-md">绕过系统提示</h3>
+            <p class="text-on-surface-variant font-body-lg leading-relaxed">
+              macOS 会提示"无法验证开发者"，这是正常的。右键点击 <code class="text-primary/60 text-sm bg-white/5 px-1.5 py-0.5 rounded">.dmg</code> → 选「打开」→ 弹窗里点「打开」即可。或者打开「系统设置」→「隐私与安全性」→ 找到 yamada → 点「仍要打开」。
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-8 py-12 border-b border-white/5">
+          <span class="font-playfair italic text-3xl text-primary/20 shrink-0 w-8">3</span>
+          <div class="space-y-2">
+            <h3 class="font-display text-headline-md">准备 DeepSeek API Key</h3>
+            <p class="text-on-surface-variant font-body-lg leading-relaxed">
+              去 <a href="https://platform.deepseek.com" target="_blank" class="text-primary/70 hover:text-primary transition-colors border-b border-primary/20">platform.deepseek.com</a> 注册，创建一个 API Key，填入应用内 Settings。
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-8 pt-12">
+          <span class="font-playfair italic text-3xl text-primary/20 shrink-0 w-8">4</span>
+          <div class="space-y-2">
+            <h3 class="font-display text-headline-md">语音功能（可选）</h3>
+            <p class="text-on-surface-variant font-body-lg leading-relaxed">
+              去 <a href="https://console.volcengine.com" target="_blank" class="text-primary/70 hover:text-primary transition-colors border-b border-primary/20">火山引擎控制台</a> 开通语音技术服务，填入 API Key。默认使用内置女声，也可以克隆自定义音色后填入 Speaker ID。
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- CTA Section -->
     <div class="glass-panel rounded-2xl p-margin-desktop text-center space-y-8 relative overflow-hidden transition-all duration-1000 opacity-100">
       <div class="relative z-10">
@@ -388,7 +475,7 @@
           深夜想随便说点什么的时候，开着就行。
         </p>
         <div class="mt-12">
-          <a href="https://github.com/zhangzhao-gg/alis" target="_blank" class="inline-block bg-primary text-on-primary px-12 py-5 rounded-full font-label-md tracking-widest hover:scale-105 transition-all shadow-2xl shadow-primary/20">
+          <a href="https://github.com/zhangzhao-gg/alis/releases/latest" target="_blank" class="inline-block bg-primary text-on-primary px-12 py-5 rounded-full font-label-md tracking-widest hover:scale-105 transition-all shadow-2xl shadow-primary/20">
             带她回家 · MAC
           </a>
         </div>
