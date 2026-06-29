@@ -12,7 +12,7 @@ let _db: Database | null = null;
 
 async function getDb(): Promise<Database> {
   if (!_db) {
-    _db = await Database.load("sqlite:alis.db");
+    _db = await Database.load("sqlite:yamada.db");
     await initDb(_db);
   }
   return _db;

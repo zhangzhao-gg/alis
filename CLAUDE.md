@@ -1,4 +1,4 @@
-# alis — 住在电脑里的虚拟朋友
+# yamada — 住在电脑里的虚拟朋友
 Tauri 2 + React 18 + TypeScript + Tailwind CSS + SQLite + DeepSeek API
 
 <directory>
