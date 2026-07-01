@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 stores/index 的 Message、MemoryFragment、MemoryType；依赖 lib/db 的计数器和记忆读写
- * [OUTPUT]: 对外提供 tickAndDistill — 每 100 条新消息触发一次记忆蒸馏，并维护动态上下文窗口
+ * [OUTPUT]: 对外提供 tickAndDistill/forceDistillMessages，维护动态上下文窗口和记忆蒸馏
  * [POS]: lib 层记忆生成器，被 InputBar onDone 回调驱动
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -154,6 +154,39 @@ export async function tickAndDistill(
     return;
   }
 
+  const refined = await distillAndSave(allMessages, apiKey, model);
+
+  // 三次全部失败则保留旧记忆，不替换
+  if (!refined) {
+    await setMessageCounter(next);
+    await incrementContextWindowSize();
+    return;
+  }
+
+  await setMessageCounter(0);
+  await setContextWindowSize(CONTEXT_WINDOW_BASE);
+}
+
+export async function forceDistillMessages(
+  allMessages: Message[],
+  apiKey: string,
+  model: string
+): Promise<boolean> {
+  if (!allMessages.length) return false;
+
+  const refined = await distillAndSave(allMessages, apiKey, model);
+  if (!refined) return false;
+
+  await setMessageCounter(0);
+  await setContextWindowSize(CONTEXT_WINDOW_BASE);
+  return true;
+}
+
+async function distillAndSave(
+  allMessages: Message[],
+  apiKey: string,
+  model: string
+): Promise<DistillResult | null> {
   const recentMessages = allMessages.slice(-DISTILL_CONTEXT_WINDOW);
   const existingFragments = useMemoryStore.getState().fragments;
   const existingCoreRecentMemory = await getCoreRecentMemory();
@@ -164,21 +197,15 @@ export async function tickAndDistill(
     if (refined) break;
   }
 
-  // 三次全部失败则保留旧记忆，不替换
-  if (!refined) {
-    await setMessageCounter(next);
-    await incrementContextWindowSize();
-    return;
-  }
+  if (!refined) return null;
 
-  await setMessageCounter(0);
   await clearMemories();
   await setCoreRecentMemory(refined.coreRecentMemory);
   for (const f of refined.fragments) {
     await saveMemory(f);
   }
-  await setContextWindowSize(CONTEXT_WINDOW_BASE);
   useMemoryStore.getState().setFragments(refined.fragments);
+  return refined;
 }
 
 async function incrementContextWindowSize() {
