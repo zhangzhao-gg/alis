@@ -179,7 +179,7 @@ async fn run_session(
             "sample_rate": 16000,
             "turn_detection": {
                 "type": "server_vad",
-                "threshold": 0.0,
+                "threshold": 0.4,
                 "silence_duration_ms": VAD_SILENCE_MS
             }
         }

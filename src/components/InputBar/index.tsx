@@ -43,19 +43,6 @@ export function InputBar() {
   const voiceModeRef = useRef(false);
   // 当前 TTS 播放句柄，用于打断
   const ttsHandleRef = useRef<TtsHandle | null>(null);
-  // VAD 触发但 AI 尚未 idle 时的待发文本
-  const pendingVoiceSendRef = useRef<string | null>(null);
-
-  // status 回到可接收语音时冲刷待发语音文本
-  const status = useChatStore((s) => s.status);
-  useEffect(() => {
-    if (status !== "idle" && status !== "recording") return;
-    const pending = pendingVoiceSendRef.current;
-    if (!pending) return;
-    pendingVoiceSendRef.current = null;
-    void sendContentRef.current(pending, "voice");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
 
   // ASR transcript 仅用于更新 hint
   useEffect(() => {
@@ -173,12 +160,8 @@ export function InputBar() {
     const isVoiceThinking = source === "voice" && currentStatus === "thinking";
     const isVoiceSpeaking = source === "voice" && currentStatus === "speaking";
 
-    // 语音模式下 AI 还在思考时先排队
-    if (isVoiceThinking) {
-      if (!content) return;
-      pendingVoiceSendRef.current = content;
-      return;
-    }
+    // 语音模式下 AI 还在思考时直接丢弃，避免连续短句误触发排队后被发送
+    if (isVoiceThinking) return;
 
     // TTS 播放中收到 ASR 结果 —— barge-in：打断 TTS，处理用户输入
     if (isVoiceSpeaking) {
@@ -324,7 +307,6 @@ export function InputBar() {
   const stopVoiceMode = useCallback(async () => {
     voiceModeRef.current = false;
     ttsHandleRef.current?.cancel();
-    pendingVoiceSendRef.current = null;
 
     const recorder = recorderRef.current;
     const sessionId = asrSessionRef.current;
