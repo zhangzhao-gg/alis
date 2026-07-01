@@ -8,20 +8,24 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useChatStore, useMemoryStore, useSettingsStore, useUIStore } from "@/stores";
 import { streamChat } from "@/lib/ai";
-import { saveMessage } from "@/lib/db";
+import { getContextWindowSize, getCoreRecentMemory, saveMessage } from "@/lib/db";
 import { tickAndDistill } from "@/lib/memory";
 import { playTts, type TtsHandle } from "@/lib/tts";
 import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt, getCharacterStatus } from "@/lib/persona";
 import { getVoiceConfig } from "@/lib/characterVoice";
 import { tickAffinity } from "@/lib/affinity";
 import { getDisplayText, getSpokenText, getEmotion } from "@/lib/messageText";
+import { cleanModelReply } from "@/lib/replyPostprocess";
 import { debugError, debugLog } from "@/lib/debugLog";
 import {
   finishAsrStream,
+  finishAliAsrStream,
   listenAsrTranscript,
   listenAsrVadEnd,
   pushAsrAudio,
+  pushAliAsrAudio,
   startAsrStream,
+  startAliAsrStream,
 } from "@/lib/asr";
 import { RealtimePcmRecorder } from "@/lib/recorder";
 
@@ -82,7 +86,10 @@ export function InputBar() {
 
   // 启动一个新 ASR session
   const rotateAsrSession = useCallback(async (apiKey: string) => {
-    const sessionId = await startAsrStream({ apiKey });
+    const { asrProvider, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
+    const sessionId = asrProvider === "aliyun"
+      ? await startAliAsrStream({ workspaceId: asrAliWorkspaceId, apiKey: asrAliApiKey })
+      : await startAsrStream({ apiKey });
     asrSessionRef.current = sessionId;
     audioPushRef.current = Promise.resolve();
     return sessionId;
@@ -98,8 +105,10 @@ export function InputBar() {
     await recorder.start((chunk) => {
       const sid = asrSessionRef.current;
       if (!sid || chunk.byteLength === 0) return;
+      const { asrProvider } = useSettingsStore.getState();
+      const pushFn = asrProvider === "aliyun" ? pushAliAsrAudio : pushAsrAudio;
       audioPushRef.current = audioPushRef.current
-        .then(() => pushAsrAudio({ sessionId: sid, audio: chunk }))
+        .then(() => pushFn({ sessionId: sid, audio: chunk }))
         .catch((err) => {
           debugError("[ASR] push error", errorMessage(err, "ASR push failed"));
         });
@@ -187,13 +196,16 @@ export function InputBar() {
 
     setAsrHint("");
 
+    const previousMessages = useChatStore.getState().messages;
     const userMsg = {
       id: crypto.randomUUID(),
       sender: "user" as const,
       text: content,
       timestamp: Date.now(),
     };
-    useChatStore.setState((s) => ({ messages: [...s.messages, userMsg] }));
+    const contextWindowSize = await getContextWindowSize();
+    const history = [...previousMessages, userMsg].slice(-contextWindowSize);
+    useChatStore.setState({ messages: [...previousMessages, userMsg] });
     await saveMessage(userMsg);
 
     setStatus("thinking");
@@ -201,8 +213,8 @@ export function InputBar() {
     let accumulated = "";
     const aliceId = crypto.randomUUID();
     const aliceTs = Date.now();
-    const history = useChatStore.getState().messages.slice(-40);
     const memories = useMemoryStore.getState().fragments;
+    const coreRecentMemory = await getCoreRecentMemory();
 
     useChatStore.setState((s) => ({
       messages: [
@@ -217,33 +229,38 @@ export function InputBar() {
       model: settings.model,
       systemPrompts: [
         TAVERN_SYSTEM_PROMPT,
-        buildTayamaContextPrompt(memories),
+        buildTayamaContextPrompt(memories, coreRecentMemory),
       ],
       onChunk: (chunk) => {
         accumulated += chunk;
       },
       onDone: async () => {
+        const cleanedReply = cleanModelReply(accumulated);
         const finalMsg = {
           id: aliceId,
           sender: "alice" as const,
-          text: accumulated,
+          text: cleanedReply,
           timestamp: aliceTs,
         };
         await saveMessage(finalMsg);
+        const completedMessages = useChatStore
+          .getState()
+          .messages
+          .map((m) => (m.id === aliceId ? finalMsg : m));
 
         // 解析表情并更新
-        const emotion = getEmotion(accumulated);
+        const emotion = getEmotion(cleanedReply);
         if (emotion) useUIStore.getState().setEmotion(emotion);
 
         // 计数并按需触发记忆蒸馏（fire-and-forget，不阻塞回复流）
         const { apiKey, model } = useSettingsStore.getState();
-        void tickAndDistill(useChatStore.getState().messages, apiKey, model);
+        void tickAndDistill(completedMessages, apiKey, model);
         void tickAffinity();
 
         try {
           await speakReply(
-            getSpokenText(accumulated),
-            () => revealReplyText(aliceId, accumulated),
+            getSpokenText(cleanedReply),
+            () => revealReplyText(aliceId, cleanedReply),
             source === "voice"
           );
         } catch (err) {
@@ -252,7 +269,7 @@ export function InputBar() {
         }
         // TTS 未开启或失败时 onStart 不会触发，确保文字最终显示
         if (!useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
-          await revealReplyText(aliceId, accumulated);
+          await revealReplyText(aliceId, cleanedReply);
         }
         setStatus(voiceModeRef.current ? "recording" : "idle");
       },
@@ -279,14 +296,19 @@ export function InputBar() {
   }, [text, sendContent]);
 
   const startVoiceMode = useCallback(async () => {
-    if (!settings.ttsApiKey) {
+    const { asrProvider, ttsApiKey, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
+    if (asrProvider === "volcengine" && !ttsApiKey) {
       setAsrHint("Missing Volcengine API key");
+      return;
+    }
+    if (asrProvider === "aliyun" && (!asrAliWorkspaceId || !asrAliApiKey)) {
+      setAsrHint("Missing Aliyun Workspace ID or API key");
       return;
     }
     try {
       setAsrHint("Connecting...");
       voiceModeRef.current = true;
-      await startVoiceCapture(settings.ttsApiKey);
+      await startVoiceCapture(ttsApiKey);
       setStatus("recording");
       setAsrHint("Listening...");
     } catch (err) {
@@ -297,7 +319,7 @@ export function InputBar() {
       recorderRef.current = null;
       setStatus("idle");
     }
-  }, [settings.ttsApiKey, setStatus, startVoiceCapture]);
+  }, [setStatus, startVoiceCapture]);
 
   const stopVoiceMode = useCallback(async () => {
     voiceModeRef.current = false;
@@ -317,7 +339,9 @@ export function InputBar() {
       try {
         const tail = recorder.flushPending();
         await recorder.stop();
-        await finishAsrStream({ sessionId, audio: tail }).catch(() => {});
+        const { asrProvider } = useSettingsStore.getState();
+        const finishFn = asrProvider === "aliyun" ? finishAliAsrStream : finishAsrStream;
+        await finishFn({ sessionId, audio: tail }).catch(() => {});
       } catch (err) {
         console.error("ASR stop error:", err);
         debugError("[ASR] stop error", errorMessage(err, "ASR stop failed"));
@@ -335,8 +359,10 @@ export function InputBar() {
       if (!voiceModeRef.current || !recorderRef.current) return;
 
       // TTS 播放中不拦截 VAD —— 让 sendContent 的 barge-in 分支处理打断
-      const apiKey = useSettingsStore.getState().ttsApiKey;
-      if (!apiKey) return;
+      const { asrProvider, ttsApiKey, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
+      const apiKey = ttsApiKey;
+      if (asrProvider === "volcengine" && !apiKey) return;
+      if (asrProvider === "aliyun" && (!asrAliWorkspaceId || !asrAliApiKey)) return;
 
       const oldSessionId = sessionId;
       const pendingAudioPush = audioPushRef.current;
@@ -347,8 +373,8 @@ export function InputBar() {
       rotateAsrSession(apiKey)
         .then(async () => {
           await pendingAudioPush.catch(() => {});
-          // 旧 session 静默收尾（只为关 WebSocket，不取文字）
-          await finishAsrStream({ sessionId: oldSessionId, audio: tail }).catch(() => {});
+          const finishFn = asrProvider === "aliyun" ? finishAliAsrStream : finishAsrStream;
+          await finishFn({ sessionId: oldSessionId, audio: tail }).catch(() => {});
         })
         .catch((err) => console.error("ASR rotate error:", err));
 

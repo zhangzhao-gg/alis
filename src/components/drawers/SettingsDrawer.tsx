@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 stores/index 的 useSettingsStore、useChatStore、useMemoryStore；依赖 lib/db
  * [OUTPUT]: 对外提供 SettingsDrawer 组件
- * [POS]: drawers/ 之设置抽屉，管理 API Key、模型、语音
+ * [POS]: drawers/ 之设置抽屉，管理 API Key、模型、语音、ASR 服务商
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -31,8 +31,8 @@ const CLEAR_COPY = {
 
 export function SettingsDrawer() {
   const [draft, setDraft] = useState<Settings>(() => {
-    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay } = useSettingsStore.getState();
-    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay };
+    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, asrProvider, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
+    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, asrProvider, asrAliWorkspaceId, asrAliApiKey };
   });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [pendingClear, setPendingClear] = useState<PendingClear>(null);
@@ -233,6 +233,55 @@ export function SettingsDrawer() {
               className="input-line"
             />
           </Field>
+        </div>
+
+        {/* ASR 服务商 */}
+        <div className="pt-2 border-t border-outline-variant/10">
+          <p className="text-label-md text-on-surface-variant uppercase tracking-widest text-[10px] mb-3">ASR Provider</p>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {(["volcengine", "aliyun"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => updateDraft({ asrProvider: p })}
+                className={`py-2 text-label-md uppercase tracking-[0.12em] border transition-colors ${
+                  draft.asrProvider === p
+                    ? "border-primary/60 bg-primary/10 text-primary"
+                    : "border-outline-variant/20 text-on-surface-variant hover:border-outline-variant/50"
+                }`}
+              >
+                {p === "volcengine" ? "火山引擎" : "阿里云"}
+              </button>
+            ))}
+          </div>
+
+          {draft.asrProvider === "volcengine" && (
+            <p className="text-label-sm text-outline/60 italic">
+              使用上方火山 API Key，无需额外配置。
+            </p>
+          )}
+
+          {draft.asrProvider === "aliyun" && (
+            <div className="space-y-3">
+              <Field label="API Host">
+                <input
+                  type="text"
+                  value={draft.asrAliWorkspaceId}
+                  onChange={(e) => updateDraft({ asrAliWorkspaceId: e.target.value })}
+                  placeholder="llm-xxx.cn-beijing.maas.aliyuncs.com"
+                  className="input-line"
+                />
+              </Field>
+              <Field label="API Key">
+                <input
+                  type="password"
+                  value={draft.asrAliApiKey}
+                  onChange={(e) => updateDraft({ asrAliApiKey: e.target.value })}
+                  placeholder="sk-..."
+                  className="input-line"
+                />
+              </Field>
+            </div>
+          )}
         </div>
 
         <div className="pt-2">

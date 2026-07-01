@@ -122,6 +122,9 @@ export interface Settings {
   ttsWorkingResourceId: string;
   ttsWorkingSpeaker: string;
   debugOverlay: boolean;
+  asrProvider: "volcengine" | "aliyun";
+  asrAliWorkspaceId: string;
+  asrAliApiKey: string;
 }
 
 interface SettingsState extends Settings {
@@ -147,6 +150,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   ttsWorkingResourceId: DEFAULT_TTS_RESOURCE_ID,
   ttsWorkingSpeaker: "",
   debugOverlay: false,
+  asrProvider: "volcengine",
+  asrAliWorkspaceId: "",
+  asrAliApiKey: "",
   update: (patch) =>
     set((state) => ({
       ...state,
@@ -159,5 +165,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       ttsWorkingResourceId: normalizeTtsResourceId(patch.ttsWorkingResourceId, state.ttsWorkingResourceId),
       ttsWorkingSpeaker: patch.ttsWorkingSpeaker ?? state.ttsWorkingSpeaker,
       debugOverlay: patch.debugOverlay ?? state.debugOverlay,
+      asrProvider: patch.asrProvider ?? state.asrProvider,
+      asrAliWorkspaceId: patch.asrAliWorkspaceId ?? state.asrAliWorkspaceId,
+      asrAliApiKey: patch.asrAliApiKey ?? state.asrAliApiKey,
     })),
 }));
