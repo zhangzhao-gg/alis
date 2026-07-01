@@ -44,16 +44,16 @@
 
 ```json
 "decorations": true,
-"theme": "dark",
-"titleBarStyle": "transparent",
+"theme": "Dark",
+"titleBarStyle": "Transparent",
 "backgroundColor": "#131315",
 "transparent": false
 ```
 
 各字段作用：
 
-- `theme: "dark"`：强制原生窗口使用深色 appearance，避免跟随系统 Light 外观。
-- `titleBarStyle: "transparent"`：让 macOS 标题栏背景透明，不再绘制独立的浅色或灰色标题栏材质。
+- `theme: "Dark"`：强制原生窗口使用深色 appearance，避免跟随系统 Light 外观。
+- `titleBarStyle: "Transparent"`：让 macOS 标题栏背景透明，不再绘制独立的浅色或灰色标题栏材质。
 - `backgroundColor: "#131315"`：把 native window/WebView 背景设为应用背景色，使透明标题栏背后与内容区一致。
 - `decorations: true`：保留原生红黄绿窗口按钮和基本窗口行为。
 - `transparent: false`：窗口本身仍是不透明窗口，不启用真正的透明窗口效果。
@@ -67,7 +67,7 @@
 
 对应排查点：
 
-- 原生标题栏：检查 `theme`、`titleBarStyle`、`backgroundColor`。
+- 原生标题栏：检查 `theme`、`titleBarStyle`、`backgroundColor`。Tauri 配置文件里的枚举值使用 PascalCase，例如 `Dark`、`Transparent`。
 - WebView 白底：检查 `html`、`body`、`#root` 是否有全高深色背景兜底。
 
 ## 经验
