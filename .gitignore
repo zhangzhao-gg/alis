@@ -32,3 +32,6 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Local source image kept outside app assets
+/白天头像16.png

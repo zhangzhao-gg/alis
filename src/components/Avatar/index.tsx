@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 依赖 stores/index 的 useChatStore、useUIStore、Emotion 类型
+ * [INPUT]: 依赖 stores/index 的 useChatStore、useUIStore、Emotion 类型；依赖 lib/persona 的 getCharacterStatus
  * [OUTPUT]: 对外提供 Avatar 组件
- * [POS]: 界面中央焦点头像，根据状态和表情切换图片，带 crossfade 过渡
+ * [POS]: 界面中央焦点头像，根据角色状态和表情切换图片，带 crossfade 过渡
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useChatStore, useUIStore, type Emotion } from "@/stores";
+import { getCharacterStatus } from "@/lib/persona";
 
 // --------------------------------------------------------
 // 静态导入所有表情图
@@ -27,6 +28,23 @@ import img生气 from "@/assets/emojis/生气.png";
 import img大哭 from "@/assets/emojis/大哭.png";
 import img睡觉 from "@/assets/emojis/睡觉.png";
 
+import yamadaImg平静 from "@/assets/emojis/yamada_平静.png";
+import yamadaImg微笑 from "@/assets/emojis/yamada_微笑.png";
+import yamadaImg开心笑 from "@/assets/emojis/yamada_开心笑.png";
+import yamadaImg大笑 from "@/assets/emojis/yamada_大笑.png";
+import yamadaImg害羞 from "@/assets/emojis/yamada_害羞.png";
+import yamadaImg害羞笑 from "@/assets/emojis/yamada_害羞笑.png";
+import yamadaImg得意 from "@/assets/emojis/yamada_得意.png";
+import yamadaImg思考 from "@/assets/emojis/yamada_思考.png";
+import yamadaImg疑惑 from "@/assets/emojis/yamada_疑惑.png";
+import yamadaImg惊讶 from "@/assets/emojis/yamada_惊讶.png";
+import yamadaImg震惊 from "@/assets/emojis/yamada_震惊.png";
+import yamadaImg郁闷 from "@/assets/emojis/yamada_郁闷.png";
+import yamadaImg不爽 from "@/assets/emojis/yamada_不爽.png";
+import yamadaImg生气 from "@/assets/emojis/yamada_生气.png";
+import yamadaImg大哭 from "@/assets/emojis/yamada_大哭.png";
+import yamadaImg睡觉 from "@/assets/emojis/yamada_睡觉.png";
+
 const EMOTION_MAP: Record<Emotion, string> = {
   平静: img平静,
   微笑: img微笑,
@@ -44,6 +62,25 @@ const EMOTION_MAP: Record<Emotion, string> = {
   生气: img生气,
   大哭: img大哭,
   睡觉: img睡觉,
+};
+
+const YAMADA_EMOTION_MAP: Record<Emotion, string> = {
+  平静: yamadaImg平静,
+  微笑: yamadaImg微笑,
+  开心笑: yamadaImg开心笑,
+  大笑: yamadaImg大笑,
+  害羞: yamadaImg害羞,
+  害羞笑: yamadaImg害羞笑,
+  得意: yamadaImg得意,
+  思考: yamadaImg思考,
+  疑惑: yamadaImg疑惑,
+  惊讶: yamadaImg惊讶,
+  震惊: yamadaImg震惊,
+  郁闷: yamadaImg郁闷,
+  不爽: yamadaImg不爽,
+  生气: yamadaImg生气,
+  大哭: yamadaImg大哭,
+  睡觉: yamadaImg睡觉,
 };
 
 const statusLabel: Record<string, string> = {
@@ -65,7 +102,8 @@ export function Avatar() {
   const isActive = status !== "idle";
 
   const emotion: Emotion = STATUS_EMOTION[status] ?? currentEmotion;
-  const imgSrc = EMOTION_MAP[emotion];
+  const imageMap = getCharacterStatus() === "working" ? YAMADA_EMOTION_MAP : EMOTION_MAP;
+  const imgSrc = imageMap[emotion];
 
   return (
     <section className="absolute top-[12%] flex flex-col items-center transition-all duration-1000">
