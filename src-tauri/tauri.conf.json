@@ -19,6 +19,9 @@
         "minHeight": 600,
         "resizable": true,
         "decorations": true,
+        "theme": "dark",
+        "titleBarStyle": "transparent",
+        "backgroundColor": "#131315",
         "transparent": false
       }
     ],
