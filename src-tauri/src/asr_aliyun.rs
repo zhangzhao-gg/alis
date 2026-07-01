@@ -249,6 +249,16 @@ async fn run_session(
         println!("[ALI-ASR] event={}", event_type);
 
         match event_type {
+            "input_audio_buffer.speech_started" => {
+                // 用户开口 — 立即触发前端 barge-in 打断 TTS
+                let _ = app.emit(
+                    "asr://transcript",
+                    AsrTranscriptEvent {
+                        session_id: session_id.clone(),
+                        text: String::new(),
+                    },
+                );
+            }
             "conversation.item.input_audio_transcription.text" => {
                 // 实时中间结果 — 用于触发前端 barge-in 打断 TTS
                 if let Some(delta) = data.get("delta").and_then(Value::as_str) {
