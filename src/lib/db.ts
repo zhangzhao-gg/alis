@@ -93,6 +93,41 @@ export async function setMessageCounter(count: number) {
   );
 }
 
+export async function getContextWindowSize(): Promise<number> {
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = ? LIMIT 1",
+    ["context_window_size"]
+  );
+  const value = rows[0] ? parseInt(rows[0].value, 10) : 10;
+  return Number.isFinite(value) && value > 0 ? value : 10;
+}
+
+export async function setContextWindowSize(size: number) {
+  const db = await getDb();
+  await db.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    ["context_window_size", String(Math.max(10, Math.floor(size)))]
+  );
+}
+
+export async function getCoreRecentMemory(): Promise<string> {
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = ? LIMIT 1",
+    ["core_recent_memory"]
+  );
+  return rows[0]?.value ?? "";
+}
+
+export async function setCoreRecentMemory(content: string) {
+  const db = await getDb();
+  await db.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    ["core_recent_memory", content]
+  );
+}
+
 export async function getAffinity(): Promise<number> {
   const db = await getDb();
   const rows = await db.select<{ value: string }[]>(
@@ -130,11 +165,13 @@ export async function setAffinityCounter(count: number) {
 export async function clearMessages() {
   const db = await getDb();
   await db.execute("DELETE FROM messages");
+  await db.execute("DELETE FROM settings WHERE key IN ('message_counter', 'context_window_size')");
 }
 
 export async function clearMemories() {
   const db = await getDb();
   await db.execute("DELETE FROM memories");
+  await db.execute("DELETE FROM settings WHERE key = ?", ["core_recent_memory"]);
 }
 
 export async function saveSettings(settings: Settings) {

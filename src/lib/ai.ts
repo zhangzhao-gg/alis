@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 stores/index 的 Message 类型
  * [OUTPUT]: 对外提供 streamChat 函数
- * [POS]: lib 层的 AI 接入，封装 DeepSeek Responses API streaming
+ * [POS]: lib 层的 AI 接入，封装 DeepSeek Responses API streaming，并给上下文消息注入时间标签
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -37,7 +37,7 @@ export async function streamChat({
         .map((content) => ({ role: "system", content })),
       ...messages.map((m) => ({
         role: m.sender === "user" ? "user" : "assistant",
-        content: m.text,
+        content: withMessageTimeTag(m.timestamp, m.text),
       })),
     ],
   };
@@ -85,4 +85,19 @@ export async function streamChat({
   } catch (err) {
     onError(err instanceof Error ? err : new Error(String(err)));
   }
+}
+
+function withMessageTimeTag(timestamp: number, text: string) {
+  return `<time>${formatMessageTime(timestamp)}</time>\n${text}`;
+}
+
+function formatMessageTime(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
 }

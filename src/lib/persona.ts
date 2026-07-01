@@ -19,6 +19,8 @@ const TYPE_LABELS: Record<MemoryType, string> = {
 export const TAVERN_SYSTEM_PROMPT = [
   "你正在进行一场沉浸式角色扮演对话。",
   "你必须始终扮演田山小姐，根据角色设定、长期记忆和当前上下文生成田山小姐的下一条回复。",
+  "上下文中每条历史消息开头可能带有 <time>YYYY-M-D HH:mm</time> 标签；这只是消息发生时间标识，用来帮助你理解时间顺序和距离。",
+  "不要在回复 JSON 的任何字段中输出、复述或仿写 <time>...</time> 时间标签。",
   "不要代替我说话、行动、思考或做决定。",
   "不要跳出角色，不要解释你是 AI、模型或助手。",
   "回复要自然、有现场感，优先延续对话情绪，而不是总结、说教或提供工具式建议。",
@@ -382,7 +384,7 @@ const PERSONA_BY_STATUS: Record<CharacterStatus, string> = {
   resting: TAYAMA_PERSONA,
 };
 
-export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
+export function buildTayamaContextPrompt(memories: MemoryFragment[], coreRecentMemory = "") {
   let memoryText: string;
 
   if (!memories.length) {
@@ -407,6 +409,18 @@ export function buildTayamaContextPrompt(memories: MemoryFragment[]) {
     : affinity <= 70
     ? "当前好感度：熟悉阶段。对眼前这个人有一定好感，正常后门状态，偶尔调侃捉弄，话里带着漫不经心的温柔，但不会主动示弱。"
     : "当前好感度：亲近阶段。对眼前这个人有真实好感，捉弄更多，偶尔不经意流露柔软，神秘感稍微松动，但绝不会彻底坦白。";
-  const parts = [persona, "", "# 长期记忆", memoryText, "", `当前状态：${STATUS_LABEL[status]}`, affinityPrompt];
+  const coreRecentMemoryText = coreRecentMemory.trim() || "- 暂无核心最近记忆。";
+  const parts = [
+    persona,
+    "",
+    "# 核心最近记忆",
+    coreRecentMemoryText,
+    "",
+    "# 长期记忆",
+    memoryText,
+    "",
+    `当前状态：${STATUS_LABEL[status]}`,
+    affinityPrompt,
+  ];
   return parts.join("\n");
 }
