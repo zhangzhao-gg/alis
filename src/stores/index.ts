@@ -122,6 +122,7 @@ export interface Settings {
   ttsWorkingResourceId: string;
   ttsWorkingSpeaker: string;
   debugOverlay: boolean;
+  personaMode: "auto" | "yamada" | "tayama";
   asrProvider: "volcengine" | "aliyun";
   asrAliWorkspaceId: string;
   asrAliApiKey: string;
@@ -150,6 +151,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   ttsWorkingResourceId: DEFAULT_TTS_RESOURCE_ID,
   ttsWorkingSpeaker: "",
   debugOverlay: false,
+  personaMode: "auto",
   asrProvider: "volcengine",
   asrAliWorkspaceId: "",
   asrAliApiKey: "",
@@ -165,6 +167,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       ttsWorkingResourceId: normalizeTtsResourceId(patch.ttsWorkingResourceId, state.ttsWorkingResourceId),
       ttsWorkingSpeaker: patch.ttsWorkingSpeaker ?? state.ttsWorkingSpeaker,
       debugOverlay: patch.debugOverlay ?? state.debugOverlay,
+      personaMode: patch.personaMode ?? state.personaMode,
       asrProvider: patch.asrProvider ?? state.asrProvider,
       asrAliWorkspaceId: patch.asrAliWorkspaceId ?? state.asrAliWorkspaceId,
       asrAliApiKey: patch.asrAliApiKey ?? state.asrAliApiKey,

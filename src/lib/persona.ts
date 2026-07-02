@@ -1,12 +1,12 @@
 /**
- * [INPUT]: 依赖 stores/index 的 MemoryFragment、MemoryType
+ * [INPUT]: 依赖 stores/index 的 MemoryFragment、MemoryType、useSettingsStore
  * [OUTPUT]: 对外提供 TAVERN_SYSTEM_PROMPT、buildTayamaContextPrompt、getCharacterStatus
  * [POS]: lib 层角色系统，构建田山完整 system prompt，注入记忆与当前状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import type { MemoryFragment, MemoryType } from "@/stores";
-import { useMemoryStore } from "@/stores";
+import type { MemoryFragment, MemoryType, Settings } from "@/stores";
+import { useMemoryStore, useSettingsStore } from "@/stores";
 
 const TYPE_LABELS: Record<MemoryType, string> = {
   trait:   "用户性格与习惯",
@@ -191,7 +191,12 @@ const TAYAMA_PERSONA = String.raw`
 
 export type CharacterStatus = "working" | "smoking" | "resting";
 
-export function getCharacterStatus(): CharacterStatus {
+export function getCharacterStatus(
+  personaMode: Settings["personaMode"] = useSettingsStore.getState().personaMode
+): CharacterStatus {
+  if (personaMode === "yamada") return "working";
+  if (personaMode === "tayama") return "smoking";
+
   const now = new Date();
   const total = now.getHours() * 60 + now.getMinutes();
   if (total >= 9 * 60 && total < 21 * 60) return "working";

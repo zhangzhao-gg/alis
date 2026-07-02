@@ -169,7 +169,7 @@ async fn run_session(
 ) {
     let (mut writer, mut reader) = socket.split();
 
-    // 初始化：VAD 模式，静音 600ms 判停
+    // 初始化：VAD 模式，静音 600ms 判停，阈值调高到 0.8
     let init = json!({
         "event_id": Uuid::new_v4().to_string(),
         "type": "session.update",
@@ -179,7 +179,7 @@ async fn run_session(
             "sample_rate": 16000,
             "turn_detection": {
                 "type": "server_vad",
-                "threshold": 0.4,
+                "threshold": 0.8,
                 "silence_duration_ms": VAD_SILENCE_MS
             }
         }

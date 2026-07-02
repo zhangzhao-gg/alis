@@ -117,10 +117,11 @@ export default function App() {
 
 function TopBar() {
   const status = useChatStore((s) => s.status);
+  const personaMode = useSettingsStore((s) => s.personaMode);
   const displayLanguage = useUIStore((s) => s.displayLanguage);
   const setDisplayLanguage = useUIStore((s) => s.setDisplayLanguage);
 
-  const characterStatus = STATUS_LABEL[getCharacterStatus()];
+  const characterStatus = STATUS_LABEL[getCharacterStatus(personaMode)];
 
   return (
     <header className="fixed top-0 left-16 right-0 z-40 flex justify-between items-center px-16 py-3 backdrop-blur-md bg-background/20">

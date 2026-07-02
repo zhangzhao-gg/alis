@@ -1,11 +1,11 @@
 /**
- * [INPUT]: 依赖 stores/index 的 useChatStore、useUIStore、Emotion 类型；依赖 lib/persona 的 getCharacterStatus
+ * [INPUT]: 依赖 stores/index 的 useChatStore、useUIStore、useSettingsStore、Emotion 类型；依赖 lib/persona 的 getCharacterStatus
  * [OUTPUT]: 对外提供 Avatar 组件
  * [POS]: 界面中央焦点头像，根据角色状态和表情切换图片，带 crossfade 过渡
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useChatStore, useUIStore, type Emotion } from "@/stores";
+import { useChatStore, useSettingsStore, useUIStore, type Emotion } from "@/stores";
 import { getCharacterStatus } from "@/lib/persona";
 
 // --------------------------------------------------------
@@ -99,10 +99,11 @@ const STATUS_EMOTION: Partial<Record<string, Emotion>> = {
 export function Avatar() {
   const status = useChatStore((s) => s.status);
   const currentEmotion = useUIStore((s) => s.currentEmotion);
+  const personaMode = useSettingsStore((s) => s.personaMode);
   const isActive = status !== "idle";
 
   const emotion: Emotion = STATUS_EMOTION[status] ?? currentEmotion;
-  const imageMap = getCharacterStatus() === "working" ? YAMADA_EMOTION_MAP : EMOTION_MAP;
+  const imageMap = getCharacterStatus(personaMode) === "working" ? YAMADA_EMOTION_MAP : EMOTION_MAP;
   const imgSrc = imageMap[emotion];
 
   return (

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 stores/index 的 useSettingsStore、useChatStore、useMemoryStore；依赖 lib/db
  * [OUTPUT]: 对外提供 SettingsDrawer 组件
- * [POS]: drawers/ 之设置抽屉，管理 API Key、模型、语音、ASR 服务商
+ * [POS]: drawers/ 之设置抽屉，管理 API Key、模型、语音、ASR 服务商与 debug 人设覆盖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -31,8 +31,8 @@ const CLEAR_COPY = {
 
 export function SettingsDrawer() {
   const [draft, setDraft] = useState<Settings>(() => {
-    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, asrProvider, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
-    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, asrProvider, asrAliWorkspaceId, asrAliApiKey };
+    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, personaMode, asrProvider, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
+    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, personaMode, asrProvider, asrAliWorkspaceId, asrAliApiKey };
   });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [pendingClear, setPendingClear] = useState<PendingClear>(null);
@@ -67,6 +67,12 @@ export function SettingsDrawer() {
 
   const toggleDebugOverlay = async () => {
     const next = { ...draft, debugOverlay: !draft.debugOverlay };
+    setDraft(next);
+    await persist(next);
+  };
+
+  const setPersonaMode = async (personaMode: Settings["personaMode"]) => {
+    const next = { ...draft, personaMode };
     setDraft(next);
     await persist(next);
   };
@@ -180,6 +186,31 @@ export function SettingsDrawer() {
               {draft.debugOverlay ? "ON" : "OFF"}
             </span>
           </div>
+        </Field>
+
+        <Field label="Persona Override">
+          <div className="flex w-full border border-outline-variant/20">
+            {[
+              { value: "auto", label: "Auto" },
+              { value: "yamada", label: "山田" },
+              { value: "tayama", label: "田山" },
+            ].map((item) => (
+              <button
+                key={item.value}
+                onClick={() => void setPersonaMode(item.value as Settings["personaMode"])}
+                className={`flex-1 py-2 text-label-md uppercase tracking-[0.12em] transition-colors ${
+                  draft.personaMode === item.value
+                    ? "bg-primary/10 text-primary"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-label-sm text-outline/60 italic">
+            Auto 按时间切换；山田/田山 会强制覆盖当前人设。
+          </p>
         </Field>
 
         <Field label="Volcengine API Key">
