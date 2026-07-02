@@ -2,7 +2,7 @@
 > L2 | 父级: src/CLAUDE.md
 
 ## 成员清单
-ai.ts: DeepSeek SSE streaming 封装，对外提供 streamChat
+ai.ts: DeepSeek Chat Completions 非流式封装，对外提供 completeChat
 db.ts: SQLite 单例 + 消息/记忆/设置读写，含 message_counter/context_window_size/core_recent_memory 持久化
 memory.ts: 记忆蒸馏器，tickAndDistill 每 100 条新消息触发一次独立 AI 调用生成核心最近记忆 + 结构化记忆
 persona.ts: 田山角色 prompt 构建，buildTayamaContextPrompt 注入核心最近记忆、按 type 分组注入长期记忆

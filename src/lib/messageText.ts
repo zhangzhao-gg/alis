@@ -31,7 +31,7 @@ function parseReply(text: string): ParsedReply {
       const emotion = VALID_EMOTIONS.has(obj.emotion) ? obj.emotion as Emotion : null;
       return { ja: obj.ja ?? "", zh: obj.zh ?? "", emotion };
     } catch {
-      // fall through to pipe
+      // fall through to pipe/plain text fallback
     }
   }
 
@@ -52,10 +52,12 @@ export function getEmotion(text: string): Emotion | null {
 }
 
 export function getSpokenText(text: string) {
-  const ja = stripBracketedText(parseReply(text).ja).trim();
-  // 如果 ja 字段没有假名，说明模型写错了语言，跳过 TTS
+  const parsed = parseReply(text);
+  const ja = stripBracketedText(parsed.ja).trim();
   const hasKana = /[぀-ゟ゠-ヿ]/.test(ja);
-  return hasKana ? ja : "";
+  if (hasKana) return ja;
+
+  return stripBracketedText(parsed.zh).trim();
 }
 
 export function getDisplayText(text: string, language: DisplayLanguage) {

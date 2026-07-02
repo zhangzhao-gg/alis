@@ -7,7 +7,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useChatStore, useMemoryStore, useSettingsStore, useUIStore } from "@/stores";
-import { streamChat } from "@/lib/ai";
+import { completeChat } from "@/lib/ai";
 import { getContextWindowSize, getCoreRecentMemory, saveMessage } from "@/lib/db";
 import { tickAndDistill } from "@/lib/memory";
 import { playTts, type TtsHandle } from "@/lib/tts";
@@ -34,6 +34,13 @@ type VoicePhase = "idle" | "connecting" | "connected";
 
 const MIN_VOICE_USER_TEXT_MS = 1500;
 const VOICE_REPLY_LINE_INTERVAL_MS = 900;
+const MAX_AI_FORMAT_ATTEMPTS = 3;
+const STRICT_JSON_RETRY_PROMPT = [
+  "上一轮输出格式不合格。请重新回答同一个用户问题。",
+  "只能输出一个合法 JSON 对象，不能输出数组、纯文本、Markdown 或动作描写外壳。",
+  "格式必须严格为：{\"ja\":\"完整自然日文\",\"zh\":\"对应中文译文\",\"emotion\":\"表情名称\"}",
+  "ja、zh、emotion 三个字段必须存在且不能为空。字段内双引号必须转义为 \\\"。",
+].join("\n");
 
 export function InputBar() {
   const [text, setText] = useState("");
@@ -233,8 +240,6 @@ export function InputBar() {
       model: settings.model,
     });
 
-    let accumulated = "";
-    let firstChunkLogged = false;
     const aliceId = crypto.randomUUID();
     const aliceTs = Date.now();
     const memories = useMemoryStore.getState().fragments;
@@ -247,26 +252,75 @@ export function InputBar() {
       ],
     }));
 
-    await streamChat({
-      messages: history,
-      apiKey: settings.apiKey,
-      model: settings.model,
-      systemPrompts: [
-        TAVERN_SYSTEM_PROMPT,
-        buildTayamaContextPrompt(memories, coreRecentMemory),
-      ],
-      onChunk: (chunk) => {
-        if (!firstChunkLogged) {
-          firstChunkLogged = true;
-          debugLog("[AI] first chunk", { source, chars: chunk.length });
+    const systemPrompts = [
+      TAVERN_SYSTEM_PROMPT,
+      buildTayamaContextPrompt(memories, coreRecentMemory),
+    ];
+
+    const requestReply = async (prompts: string[], attempt: "primary" | "retry") => {
+      debugLog("[AI] request attempt start", { source, attempt });
+      const reply = await completeChat({
+        messages: history,
+        apiKey: settings.apiKey,
+        model: settings.model,
+        systemPrompts: prompts,
+      });
+      debugLog("[AI] response received", { source, attempt, chars: reply.length });
+      return reply;
+    };
+
+    try {
+      const rawReply = await requestValidReply(systemPrompts);
+      await handleModelReply(rawReply);
+    } catch (err) {
+      setStatus(voiceModeRef.current ? "recording" : "idle");
+      debugError("[AI] error", errorMessage(err, "AI request failed"));
+      useChatStore.setState((s) => ({
+        messages: s.messages.map((m) =>
+          m.id === aliceId ? { ...m, text: "..." } : m
+        ),
+      }));
+    }
+
+    async function requestValidReply(prompts: string[]) {
+      let lastReply = "";
+
+      for (let attemptIndex = 1; attemptIndex <= MAX_AI_FORMAT_ATTEMPTS; attemptIndex += 1) {
+        const attempt = attemptIndex === 1 ? "primary" : "retry";
+        const retryPrompt = attemptIndex === 1 ? [] : [STRICT_JSON_RETRY_PROMPT];
+        const rawReply = await requestReply([...prompts, ...retryPrompt], attempt);
+        lastReply = rawReply;
+
+        if (isStrictReplyJson(rawReply)) return rawReply;
+
+        debugError("[AI] invalid response protocol", {
+          source,
+          attempt: attemptIndex,
+          maxAttempts: MAX_AI_FORMAT_ATTEMPTS,
+          rawPreview: rawReply.slice(0, 220),
+          rawChars: rawReply.length,
+        });
+      }
+
+      throw new Error(`AI response protocol invalid after ${MAX_AI_FORMAT_ATTEMPTS} attempts: ${JSON.stringify(lastReply)}`);
+    }
+
+    async function handleModelReply(rawReply: string) {
+        const cleanedReply = cleanModelReply(rawReply);
+        debugLog("[AI] raw response", JSON.stringify(rawReply));
+        debugLog("[AI] cleaned response", JSON.stringify(cleanedReply));
+        if (!cleanedReply.trim()) {
+          debugError("[AI] empty response after stream done", {
+            source,
+            rawChars: rawReply.length,
+            rawPreview: rawReply.slice(0, 200),
+            rawCharCodes: [...rawReply.slice(0, 80)].map((char) => char.charCodeAt(0)),
+            model: settings.model,
+          });
         }
-        accumulated += chunk;
-      },
-      onDone: async () => {
-        const cleanedReply = cleanModelReply(accumulated);
         debugLog("[AI] response done", {
           source,
-          rawChars: accumulated.length,
+          rawChars: rawReply.length,
           cleanedChars: cleanedReply.length,
           spokenChars: getSpokenText(cleanedReply).length,
         });
@@ -319,17 +373,7 @@ export function InputBar() {
           source,
           nextStatus: voiceModeRef.current ? "recording" : "idle",
         });
-      },
-      onError: (err) => {
-        setStatus(voiceModeRef.current ? "recording" : "idle");
-        debugError("[AI] error", err.message);
-        useChatStore.setState((s) => ({
-          messages: s.messages.map((m) =>
-            m.id === aliceId ? { ...m, text: "..." } : m
-          ),
-        }));
-      },
-    });
+    }
   }, [settings.apiKey, settings.model, settings.ttsApiKey, settings.ttsResourceId, settings.voiceEnabled, setStatus, speakReply]);
 
   // 保持 ref 同步，让 status effect 能调到最新版本
@@ -558,6 +602,34 @@ export function InputBar() {
 function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error && err.message ? err.message : String(err || fallback);
 }
+
+function isStrictReplyJson(rawText: string) {
+  const text = rawText.trim();
+  if (!text.startsWith("{") || !text.endsWith("}")) return false;
+
+  try {
+    const parsed = JSON.parse(text) as {
+      ja?: unknown;
+      zh?: unknown;
+      emotion?: unknown;
+    };
+    return (
+      typeof parsed.ja === "string" &&
+      parsed.ja.trim().length > 0 &&
+      typeof parsed.zh === "string" &&
+      parsed.zh.trim().length > 0 &&
+      typeof parsed.emotion === "string" &&
+      VALID_REPLY_EMOTIONS.has(parsed.emotion)
+    );
+  } catch {
+    return false;
+  }
+}
+
+const VALID_REPLY_EMOTIONS = new Set([
+  "平静", "微笑", "开心笑", "大笑", "害羞", "害羞笑", "得意", "思考", "疑惑",
+  "惊讶", "震惊", "郁闷", "不爽", "生气", "大哭", "睡觉",
+]);
 
 function setAliceMessageText(id: string, text: string) {
   useChatStore.setState((s) => ({
