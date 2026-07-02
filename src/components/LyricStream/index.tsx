@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChatStore, useUIStore, type DisplayLanguage, type Message } from "@/stores";
 import { getDisplayText, splitDisplaySentences } from "@/lib/messageText";
+import { debugLog } from "@/lib/debugLog";
 
 const VISIBLE = 6;
 
@@ -149,8 +150,20 @@ function VoiceLyricLine({
   useEffect(() => {
     setFading(false);
     setHidden(false);
+    debugLog("[VOICE_UI] line show", {
+      sender: line.sender,
+      isCurrent,
+      chars: line.text.length,
+      text: line.text.slice(0, 100),
+    });
     const fadeTimer = window.setTimeout(() => setFading(true), 3000);
-    const hideTimer = window.setTimeout(() => setHidden(true), 4800);
+    const hideTimer = window.setTimeout(() => {
+      debugLog("[VOICE_UI] line hidden", {
+        sender: line.sender,
+        chars: line.text.length,
+      });
+      setHidden(true);
+    }, 4800);
     return () => {
       window.clearTimeout(fadeTimer);
       window.clearTimeout(hideTimer);

@@ -56,6 +56,10 @@ export function InputBar() {
 
     listenAsrTranscript(({ sessionId }) => {
       if (disposed || sessionId !== asrSessionRef.current) return;
+      debugLog("[ASR] transcript received", {
+        sessionId,
+        status: useChatStore.getState().status,
+      });
       // barge-in：ASR 一识别到用户开口就立即掐断 TTS，不等整句说完
       if (useChatStore.getState().status === "speaking") {
         const handle = ttsHandleRef.current;
@@ -79,11 +83,13 @@ export function InputBar() {
   // 启动一个新 ASR session
   const rotateAsrSession = useCallback(async (apiKey: string) => {
     const { asrProvider, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
+    debugLog("[ASR] rotate session start", { provider: asrProvider });
     const sessionId = asrProvider === "aliyun"
       ? await startAliAsrStream({ workspaceId: asrAliWorkspaceId, apiKey: asrAliApiKey })
       : await startAsrStream({ apiKey });
     asrSessionRef.current = sessionId;
     audioPushRef.current = Promise.resolve();
+    debugLog("[ASR] rotate session ready", { provider: asrProvider, sessionId });
     return sessionId;
   }, []);
 
@@ -164,9 +170,18 @@ export function InputBar() {
     const isVoiceRecording = source === "voice" && currentStatus === "recording";
     const isVoiceThinking = source === "voice" && currentStatus === "thinking";
     const isVoiceSpeaking = source === "voice" && currentStatus === "speaking";
+    debugLog("[VOICE] sendContent requested", {
+      source,
+      currentStatus,
+      chars: content.length,
+      preview: content.slice(0, 80),
+    });
 
     // 语音模式下 AI 还在思考时直接丢弃，避免连续短句误触发排队后被发送
-    if (isVoiceThinking) return;
+    if (isVoiceThinking) {
+      debugLog("[VOICE] sendContent skipped: already thinking", { chars: content.length });
+      return;
+    }
 
     // TTS 播放中收到 ASR 结果 —— barge-in：打断 TTS，处理用户输入
     if (isVoiceSpeaking) {
@@ -180,7 +195,18 @@ export function InputBar() {
       // 落到下方正常处理 content
     }
 
-    if (!content || !settings.apiKey || (currentStatus !== "idle" && !isVoiceRecording && !isVoiceSpeaking)) return;
+    if (!content) {
+      debugLog("[VOICE] sendContent skipped: empty content", { source });
+      return;
+    }
+    if (!settings.apiKey) {
+      debugLog("[VOICE] sendContent skipped: missing chat API key", { source });
+      return;
+    }
+    if (currentStatus !== "idle" && !isVoiceRecording && !isVoiceSpeaking) {
+      debugLog("[VOICE] sendContent skipped: blocked by status", { source, currentStatus });
+      return;
+    }
 
     setAsrHint("");
 
@@ -200,8 +226,15 @@ export function InputBar() {
     }
 
     setStatus("thinking");
+    debugLog("[AI] request start", {
+      source,
+      historyMessages: history.length,
+      userChars: content.length,
+      model: settings.model,
+    });
 
     let accumulated = "";
+    let firstChunkLogged = false;
     const aliceId = crypto.randomUUID();
     const aliceTs = Date.now();
     const memories = useMemoryStore.getState().fragments;
@@ -223,10 +256,20 @@ export function InputBar() {
         buildTayamaContextPrompt(memories, coreRecentMemory),
       ],
       onChunk: (chunk) => {
+        if (!firstChunkLogged) {
+          firstChunkLogged = true;
+          debugLog("[AI] first chunk", { source, chars: chunk.length });
+        }
         accumulated += chunk;
       },
       onDone: async () => {
         const cleanedReply = cleanModelReply(accumulated);
+        debugLog("[AI] response done", {
+          source,
+          rawChars: accumulated.length,
+          cleanedChars: cleanedReply.length,
+          spokenChars: getSpokenText(cleanedReply).length,
+        });
         const finalMsg = {
           id: aliceId,
           sender: "alice" as const,
@@ -249,15 +292,20 @@ export function InputBar() {
         void tickAffinity();
 
         if (source === "voice") {
+          debugLog("[VOICE] holding user transcript before reply", {
+            untilMs: Math.max(0, voiceUserHoldUntilRef.current - Date.now()),
+          });
           await waitUntil(voiceUserHoldUntilRef.current);
         }
 
         try {
+          debugLog("[TTS] speakReply start", { source });
           await speakReply(
             getSpokenText(cleanedReply),
             () => revealReplyText(aliceId, cleanedReply, source === "voice" ? "lineFade" : "typewriter"),
             source === "voice"
           );
+          debugLog("[TTS] speakReply resolved", { source });
         } catch (err) {
           debugError("[TTS] error", errorMessage(err, "TTS failed"));
           setAsrHint(errorMessage(err, "TTS failed"));
@@ -267,6 +315,10 @@ export function InputBar() {
           await revealReplyText(aliceId, cleanedReply, source === "voice" ? "lineFade" : "typewriter");
         }
         setStatus(voiceModeRef.current ? "recording" : "idle");
+        debugLog("[VOICE] turn complete", {
+          source,
+          nextStatus: voiceModeRef.current ? "recording" : "idle",
+        });
       },
       onError: (err) => {
         setStatus(voiceModeRef.current ? "recording" : "idle");
@@ -353,6 +405,12 @@ export function InputBar() {
     listenAsrVadEnd(({ sessionId, text: vadText }) => {
       if (disposed || sessionId !== asrSessionRef.current) return;
       if (!voiceModeRef.current || !recorderRef.current) return;
+      debugLog("[ASR] vad-end received", {
+        sessionId,
+        chars: vadText.trim().length,
+        text: vadText.trim().slice(0, 120),
+        status: useChatStore.getState().status,
+      });
 
       // TTS 播放中不拦截 VAD —— 让 sendContent 的 barge-in 分支处理打断
       const { asrProvider, ttsApiKey, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
@@ -365,14 +423,23 @@ export function InputBar() {
       // 抢救尾音后立即建新 session，旧 session 后台关闭
       const tail = recorderRef.current.flushPending();
       asrSessionRef.current = null;
+      debugLog("[ASR] rotate after vad-end", {
+        oldSessionId,
+        tailBytes: tail.byteLength,
+        provider: asrProvider,
+      });
 
       rotateAsrSession(apiKey)
         .then(async () => {
           await pendingAudioPush.catch(() => {});
           const finishFn = asrProvider === "aliyun" ? finishAliAsrStream : finishAsrStream;
           await finishFn({ sessionId: oldSessionId, audio: tail }).catch(() => {});
+          debugLog("[ASR] previous session finished", { oldSessionId });
         })
-        .catch((err) => console.error("ASR rotate error:", err));
+        .catch((err) => {
+          console.error("ASR rotate error:", err);
+          debugError("[ASR] rotate after vad-end failed", errorMessage(err, "ASR rotate failed"));
+        });
 
       const content = vadText.trim();
       if (content) {
