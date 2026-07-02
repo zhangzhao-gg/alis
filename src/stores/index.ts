@@ -60,21 +60,28 @@ interface UIState {
   activeDrawer: DrawerType;
   displayLanguage: DisplayLanguage;
   currentEmotion: Emotion;
+  voiceCallActive: boolean;
+  voiceCallStartedAt: number | null;
   setDrawer: (d: DrawerType) => void;
   toggleDrawer: (d: Exclude<DrawerType, null>) => void;
   setDisplayLanguage: (language: DisplayLanguage) => void;
   setEmotion: (emotion: Emotion) => void;
+  setVoiceCallActive: (active: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
   activeDrawer: null,
   displayLanguage: "zh",
   currentEmotion: "平静",
+  voiceCallActive: false,
+  voiceCallStartedAt: null,
   setDrawer: (activeDrawer) => set({ activeDrawer }),
   toggleDrawer: (d) =>
     set({ activeDrawer: get().activeDrawer === d ? null : d }),
   setDisplayLanguage: (displayLanguage) => set({ displayLanguage }),
   setEmotion: (currentEmotion) => set({ currentEmotion }),
+  setVoiceCallActive: (voiceCallActive) =>
+    set({ voiceCallActive, voiceCallStartedAt: voiceCallActive ? Date.now() : null }),
 }));
 
 // ============================================================

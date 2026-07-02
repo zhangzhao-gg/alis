@@ -14,7 +14,7 @@ import { playTts, type TtsHandle } from "@/lib/tts";
 import { TAVERN_SYSTEM_PROMPT, buildTayamaContextPrompt, getCharacterStatus } from "@/lib/persona";
 import { getVoiceConfig } from "@/lib/characterVoice";
 import { tickAffinity } from "@/lib/affinity";
-import { getDisplayText, getSpokenText, getEmotion } from "@/lib/messageText";
+import { getDisplayText, getSpokenText, getEmotion, splitDisplaySentences } from "@/lib/messageText";
 import { cleanModelReply } from "@/lib/replyPostprocess";
 import { debugError, debugLog } from "@/lib/debugLog";
 import {
@@ -30,6 +30,10 @@ import {
 import { RealtimePcmRecorder } from "@/lib/recorder";
 
 type InputSource = "text" | "voice";
+type VoicePhase = "idle" | "connecting" | "connected";
+
+const MIN_VOICE_USER_TEXT_MS = 1500;
+const VOICE_REPLY_LINE_INTERVAL_MS = 900;
 
 export function InputBar() {
   const [text, setText] = useState("");
@@ -43,6 +47,7 @@ export function InputBar() {
   const voiceModeRef = useRef(false);
   // 当前 TTS 播放句柄，用于打断
   const ttsHandleRef = useRef<TtsHandle | null>(null);
+  const voiceUserHoldUntilRef = useRef(0);
 
   // ASR transcript 仅用于更新 hint
   useEffect(() => {
@@ -190,6 +195,9 @@ export function InputBar() {
     const history = [...previousMessages, userMsg].slice(-contextWindowSize);
     useChatStore.setState({ messages: [...previousMessages, userMsg] });
     await saveMessage(userMsg);
+    if (source === "voice") {
+      voiceUserHoldUntilRef.current = Date.now() + MIN_VOICE_USER_TEXT_MS;
+    }
 
     setStatus("thinking");
 
@@ -240,10 +248,14 @@ export function InputBar() {
         void tickAndDistill(completedMessages, apiKey, model);
         void tickAffinity();
 
+        if (source === "voice") {
+          await waitUntil(voiceUserHoldUntilRef.current);
+        }
+
         try {
           await speakReply(
             getSpokenText(cleanedReply),
-            () => revealReplyText(aliceId, cleanedReply),
+            () => revealReplyText(aliceId, cleanedReply, source === "voice" ? "lineFade" : "typewriter"),
             source === "voice"
           );
         } catch (err) {
@@ -252,7 +264,7 @@ export function InputBar() {
         }
         // TTS 未开启或失败时 onStart 不会触发，确保文字最终显示
         if (!useChatStore.getState().messages.find((m) => m.id === aliceId)?.text) {
-          await revealReplyText(aliceId, cleanedReply);
+          await revealReplyText(aliceId, cleanedReply, source === "voice" ? "lineFade" : "typewriter");
         }
         setStatus(voiceModeRef.current ? "recording" : "idle");
       },
@@ -278,15 +290,15 @@ export function InputBar() {
     await sendContent(content, "text");
   }, [text, sendContent]);
 
-  const startVoiceMode = useCallback(async () => {
+  const startVoiceMode = useCallback(async (): Promise<boolean> => {
     const { asrProvider, ttsApiKey, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
     if (asrProvider === "volcengine" && !ttsApiKey) {
       setAsrHint("Missing Volcengine API key");
-      return;
+      return false;
     }
     if (asrProvider === "aliyun" && (!asrAliWorkspaceId || !asrAliApiKey)) {
       setAsrHint("Missing Aliyun Workspace ID or API key");
-      return;
+      return false;
     }
     try {
       setAsrHint("Connecting...");
@@ -294,6 +306,7 @@ export function InputBar() {
       await startVoiceCapture(ttsApiKey);
       setStatus("recording");
       setAsrHint("Listening...");
+      return true;
     } catch (err) {
       console.error("ASR start error:", err);
       debugError("[ASR] start error", errorMessage(err, "ASR start failed"));
@@ -301,6 +314,7 @@ export function InputBar() {
       voiceModeRef.current = false;
       recorderRef.current = null;
       setStatus("idle");
+      return false;
     }
   }, [setStatus, startVoiceCapture]);
 
@@ -375,15 +389,23 @@ export function InputBar() {
     return () => { disposed = true; unlisten?.(); };
   }, [rotateAsrSession]);
 
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>("idle");
 
   const startVoiceModeWithState = useCallback(async () => {
-    setIsVoiceMode(true);
-    await startVoiceMode();
+    setVoicePhase("connecting");
+    useUIStore.getState().setVoiceCallActive(true);
+    const started = await startVoiceMode();
+    if (!started) {
+      setVoicePhase("idle");
+      useUIStore.getState().setVoiceCallActive(false);
+      return;
+    }
+    setVoicePhase("connected");
   }, [startVoiceMode]);
 
   const stopVoiceModeWithState = useCallback(async () => {
-    setIsVoiceMode(false);
+    setVoicePhase("idle");
+    useUIStore.getState().setVoiceCallActive(false);
     await stopVoiceMode();
   }, [stopVoiceMode]);
 
@@ -403,47 +425,65 @@ export function InputBar() {
   };
 
   const isDisabled = status === "thinking" || status === "speaking";
-  const isRecording = isVoiceMode;
+  const isVoiceUiActive = voicePhase !== "idle";
 
   return (
-    <section className="fixed bottom-0 left-16 right-0 pb-16 flex justify-center px-6 z-30">
-      <div className="w-full max-w-2xl relative group">
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => {
-            setAsrHint("");
-            setText(e.target.value);
-          }}
-          onKeyDown={onKeyDown}
-          disabled={isDisabled}
-          placeholder={isRecording ? "Listening..." : isDisabled ? "..." : "Tell me something..."}
-          className="w-full bg-transparent border-b border-outline-variant/30 py-4 px-12 text-body-lg text-on-surface focus:outline-none focus:border-primary transition-colors placeholder:text-outline-variant/50 placeholder:italic disabled:opacity-40"
-        />
-
-        {/* 麦克风按钮 */}
+    <section className="fixed bottom-0 left-16 right-0 pb-14 flex justify-center px-6 z-30">
+      {isVoiceUiActive ? (
         <button
           onClick={toggleRecording}
-          disabled={isDisabled}
-          className={`absolute left-0 bottom-4 transition-colors active:scale-95 disabled:opacity-30 ${
-            isRecording ? "text-primary animate-pulse" : "text-on-surface-variant hover:text-primary"
-          }`}
+          disabled={voicePhase === "connecting"}
+          className="relative flex h-16 w-16 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-primary shadow-[0_0_45px_rgba(216,191,214,0.22)] transition-all duration-500 hover:bg-primary/25 active:scale-95 disabled:cursor-default"
+          aria-label="End voice call"
         >
-          <span className="material-symbols-outlined">{isRecording ? "stop_circle" : "mic"}</span>
+          {voicePhase === "connecting" ? (
+            <>
+              <span className="absolute -inset-2 rounded-full border border-primary/25 animate-ping" />
+              <span className="absolute inset-0 rounded-full border border-primary/20 animate-ping [animation-delay:180ms]" />
+            </>
+          ) : (
+            <span className="absolute inset-0 rounded-full border border-primary/25 animate-pulse" />
+          )}
+          <span className="material-symbols-outlined relative text-3xl">
+            {voicePhase === "connecting" ? "call" : "call_end"}
+          </span>
         </button>
+      ) : (
+        <div className="w-full max-w-2xl relative group">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => {
+              setAsrHint("");
+              setText(e.target.value);
+            }}
+            onKeyDown={onKeyDown}
+            disabled={isDisabled}
+            placeholder={isDisabled ? "..." : "Tell me something..."}
+            className="w-full bg-transparent border-b border-outline-variant/30 py-4 pl-4 pr-24 text-body-lg text-on-surface focus:outline-none focus:border-primary transition-colors placeholder:text-outline-variant/50 placeholder:italic disabled:opacity-40"
+          />
 
-        {/* 发送按钮 */}
-        <button
-          onClick={send}
-          disabled={isDisabled || isRecording || !text.trim()}
-          className="absolute right-0 bottom-4 text-on-surface-variant hover:text-primary transition-colors active:scale-95 disabled:opacity-30"
-        >
-          <span className="material-symbols-outlined">north_east</span>
-        </button>
+          <button
+            onClick={toggleRecording}
+            disabled={isDisabled}
+            className="absolute right-10 bottom-4 text-on-surface-variant hover:text-primary transition-colors active:scale-95 disabled:opacity-30"
+            aria-label="Start voice call"
+          >
+            <span className="material-symbols-outlined">call</span>
+          </button>
 
-        {/* 输入焦点下划线 */}
-        <div className="absolute bottom-0 left-0 h-[1px] bg-primary w-0 group-focus-within:w-full transition-all duration-700" />
-      </div>
+          <button
+            onClick={send}
+            disabled={isDisabled || !text.trim()}
+            className="absolute right-0 bottom-4 text-on-surface-variant hover:text-primary transition-colors active:scale-95 disabled:opacity-30"
+            aria-label="Send message"
+          >
+            <span className="material-symbols-outlined">north_east</span>
+          </button>
+
+          <div className="absolute bottom-0 left-0 h-[1px] bg-primary w-0 group-focus-within:w-full transition-all duration-700" />
+        </div>
+      )}
     </section>
   );
 }
@@ -458,13 +498,36 @@ function setAliceMessageText(id: string, text: string) {
   }));
 }
 
-async function revealReplyText(id: string, rawText: string) {
+async function revealReplyText(id: string, rawText: string, mode: "typewriter" | "lineFade") {
+  if (mode === "lineFade") {
+    await revealVoiceReplyLines(id, rawText);
+    return;
+  }
+
   const language = useUIStore.getState().displayLanguage;
   const displayText = getDisplayText(rawText, language);
   const tempo = createTypingTempo();
 
   await revealPlainText(id, displayText || rawText, tempo);
   setAliceMessageText(id, rawText);
+}
+
+async function revealVoiceReplyLines(id: string, rawText: string) {
+  const language = useUIStore.getState().displayLanguage;
+  const displayText = getDisplayText(rawText, language);
+  const lines = splitDisplaySentences(displayText || rawText).filter((line) => line.trim());
+
+  if (!lines.length) {
+    setAliceMessageText(id, rawText);
+    return;
+  }
+
+  let visibleText = "";
+  for (const line of lines) {
+    visibleText = visibleText ? `${visibleText}\n${line}` : line;
+    setAliceMessageText(id, visibleText);
+    await wait(VOICE_REPLY_LINE_INTERVAL_MS);
+  }
 }
 
 async function revealPlainText(id: string, text: string, initialTempo: TypingTempo) {
@@ -478,6 +541,10 @@ async function revealPlainText(id: string, text: string, initialTempo: TypingTem
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function waitUntil(timestamp: number) {
+  return wait(Math.max(0, timestamp - Date.now()));
 }
 
 interface TypingTempo {

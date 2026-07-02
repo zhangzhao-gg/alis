@@ -74,10 +74,20 @@ export default {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
+        "voice-user-in": {
+          "0%": { opacity: "0", transform: "translateY(6px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "voice-ai-in": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "pulse-slow": "pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "fade-in": "fade-in 0.4s ease-out",
+        "voice-user-in": "voice-user-in 1.5s ease-out both",
+        "voice-ai-in": "voice-ai-in 0.7s ease-out both",
       },
     },
   },
