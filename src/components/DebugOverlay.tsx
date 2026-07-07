@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 lib/debugLog 的 useDebugLogStore
+ * [OUTPUT]: 对外提供 DebugOverlay 组件
+ * [POS]: components 层调试浮窗，展示并清理运行时 debug 日志
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { useDebugLogStore } from "@/lib/debugLog";
 

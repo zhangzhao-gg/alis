@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 stores/index 的 Message、MemoryFragment、MemoryType；依赖 lib/db 的计数器和记忆读写
+ * [INPUT]: 依赖 stores/index 的 Message、MemoryFragment、MemoryType；依赖 lib/db 的计数器和记忆读写；依赖 lib/ai 的 completePrompt
  * [OUTPUT]: 对外提供 tickAndDistill/forceDistillMessages，维护动态上下文窗口和记忆蒸馏
  * [POS]: lib 层记忆生成器，被 InputBar onDone 回调驱动
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -16,6 +16,7 @@ import {
   setCoreRecentMemory,
   setMessageCounter,
 } from "@/lib/db";
+import { completePrompt } from "@/lib/ai";
 import { useMemoryStore } from "@/stores";
 
 const DISTILL_THRESHOLD = 100;
@@ -83,24 +84,11 @@ async function distillOnce(
 ): Promise<DistillResult | null> {
   let raw = "";
   try {
-    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        messages: [
-          { role: "user", content: buildDistillPrompt(recentMessages, existingFragments, existingCoreRecentMemory) },
-        ],
-      }),
+    raw = await completePrompt({
+      apiKey,
+      model,
+      prompt: buildDistillPrompt(recentMessages, existingFragments, existingCoreRecentMemory),
     });
-
-    if (!res.ok) return null;
-    const json = await res.json();
-    raw = json.choices?.[0]?.message?.content ?? "";
   } catch {
     return null;
   }

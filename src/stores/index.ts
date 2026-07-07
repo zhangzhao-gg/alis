@@ -1,4 +1,12 @@
+/**
+ * [INPUT]: 依赖 zustand 的 create，依赖 lib/aiModels 的 DEFAULT_AI_MODEL/normalizeAIModel/resolveAIModel
+ * [OUTPUT]: 对外提供 Message/Memory/Settings 类型与 chat/ui/memory/settings stores
+ * [POS]: src/stores 的全局状态入口，被 App、InputBar、drawers 与 lib 层共享
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { create } from "zustand";
+import { DEFAULT_AI_MODEL, normalizeAIModel, resolveAIModel } from "@/lib/aiModels";
 
 // ============================================================
 //  类型定义
@@ -120,7 +128,8 @@ export const useMemoryStore = create<MemoryState>((set) => ({
 // ============================================================
 
 export interface Settings {
-  apiKey: string;
+  deepseekApiKey: string;
+  aliyunApiKey: string;
   model: string;
   voiceEnabled: boolean;
   ttsApiKey: string;
@@ -136,7 +145,7 @@ export interface Settings {
 }
 
 interface SettingsState extends Settings {
-  update: (patch: Partial<Settings>) => void;
+  update: (patch: Partial<Settings> & { apiKey?: string }) => void;
 }
 
 const DEFAULT_TTS_RESOURCE_ID = "seed-icl-2.0";
@@ -149,8 +158,9 @@ function normalizeTtsResourceId(resourceId: string | undefined, fallback: string
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  apiKey: "",
-  model: "deepseek-chat",
+  deepseekApiKey: "",
+  aliyunApiKey: "",
+  model: DEFAULT_AI_MODEL,
   voiceEnabled: false,
   ttsApiKey: "",
   ttsResourceId: DEFAULT_TTS_RESOURCE_ID,
@@ -163,20 +173,27 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   asrAliWorkspaceId: "",
   asrAliApiKey: "",
   update: (patch) =>
-    set((state) => ({
-      ...state,
-      apiKey: patch.apiKey ?? state.apiKey,
-      model: patch.model ?? state.model,
-      voiceEnabled: patch.voiceEnabled ?? state.voiceEnabled,
-      ttsApiKey: patch.ttsApiKey ?? state.ttsApiKey,
-      ttsResourceId: normalizeTtsResourceId(patch.ttsResourceId, state.ttsResourceId),
-      ttsSpeaker: patch.ttsSpeaker ?? state.ttsSpeaker,
-      ttsWorkingResourceId: normalizeTtsResourceId(patch.ttsWorkingResourceId, state.ttsWorkingResourceId),
-      ttsWorkingSpeaker: patch.ttsWorkingSpeaker ?? state.ttsWorkingSpeaker,
-      debugOverlay: patch.debugOverlay ?? state.debugOverlay,
-      personaMode: patch.personaMode ?? state.personaMode,
-      asrProvider: patch.asrProvider ?? state.asrProvider,
-      asrAliWorkspaceId: patch.asrAliWorkspaceId ?? state.asrAliWorkspaceId,
-      asrAliApiKey: patch.asrAliApiKey ?? state.asrAliApiKey,
-    })),
+    set((state) => {
+      const model = patch.model ? normalizeAIModel(patch.model) : state.model;
+      const legacyApiKey = patch.apiKey;
+      const legacyProvider = legacyApiKey ? resolveAIModel(model).provider : null;
+
+      return {
+        ...state,
+        deepseekApiKey: patch.deepseekApiKey ?? (legacyProvider === "deepseek" ? legacyApiKey : state.deepseekApiKey),
+        aliyunApiKey: patch.aliyunApiKey ?? (legacyProvider === "aliyun" ? legacyApiKey : state.aliyunApiKey),
+        model,
+        voiceEnabled: patch.voiceEnabled ?? state.voiceEnabled,
+        ttsApiKey: patch.ttsApiKey ?? state.ttsApiKey,
+        ttsResourceId: normalizeTtsResourceId(patch.ttsResourceId, state.ttsResourceId),
+        ttsSpeaker: patch.ttsSpeaker ?? state.ttsSpeaker,
+        ttsWorkingResourceId: normalizeTtsResourceId(patch.ttsWorkingResourceId, state.ttsWorkingResourceId),
+        ttsWorkingSpeaker: patch.ttsWorkingSpeaker ?? state.ttsWorkingSpeaker,
+        debugOverlay: patch.debugOverlay ?? state.debugOverlay,
+        personaMode: patch.personaMode ?? state.personaMode,
+        asrProvider: patch.asrProvider ?? state.asrProvider,
+        asrAliWorkspaceId: patch.asrAliWorkspaceId ?? state.asrAliWorkspaceId,
+        asrAliApiKey: patch.asrAliApiKey ?? state.asrAliApiKey,
+      };
+    }),
 }));

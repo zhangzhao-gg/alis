@@ -1,18 +1,14 @@
 /**
  * [INPUT]: 依赖 stores/index 的 useSettingsStore、useChatStore、useMemoryStore；依赖 lib/db
  * [OUTPUT]: 对外提供 SettingsDrawer 组件
- * [POS]: drawers/ 之设置抽屉，管理 API Key、模型、语音、ASR 服务商与 debug 人设覆盖
+ * [POS]: drawers/ 之设置抽屉，管理 AI 模型、分供应商 API Key、语音、ASR 服务商与 debug 人设覆盖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useState } from "react";
 import { useSettingsStore, useChatStore, useMemoryStore, type Settings } from "@/stores";
 import { clearMessages, clearMemories, saveSettings } from "@/lib/db";
-
-const MODELS = [
-  { value: "deepseek-chat", label: "DeepSeek Chat" },
-  { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
-];
+import { AI_MODEL_OPTIONS, normalizeAIModel } from "@/lib/aiModels";
 
 type PendingClear = "messages" | "memories" | null;
 
@@ -31,8 +27,8 @@ const CLEAR_COPY = {
 
 export function SettingsDrawer() {
   const [draft, setDraft] = useState<Settings>(() => {
-    const { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, personaMode, asrProvider, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
-    return { apiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, personaMode, asrProvider, asrAliWorkspaceId, asrAliApiKey };
+    const { deepseekApiKey, aliyunApiKey, model, voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, personaMode, asrProvider, asrAliWorkspaceId, asrAliApiKey } = useSettingsStore.getState();
+    return { deepseekApiKey, aliyunApiKey, model: normalizeAIModel(model), voiceEnabled, ttsApiKey, ttsResourceId, ttsSpeaker, ttsWorkingResourceId, ttsWorkingSpeaker, debugOverlay, personaMode, asrProvider, asrAliWorkspaceId, asrAliApiKey };
   });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [pendingClear, setPendingClear] = useState<PendingClear>(null);
@@ -120,16 +116,27 @@ export function SettingsDrawer() {
       </div>
 
       <div className="flex-1 px-8 space-y-4 pb-8">
-        {/* API Key */}
-        <Field label="API Key">
-          <input
-            type="password"
-            value={draft.apiKey}
-            onChange={(e) => updateDraft({ apiKey: e.target.value })}
-            placeholder="sk-..."
-            className="input-line"
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="DeepSeek API Key">
+            <input
+              type="password"
+              value={draft.deepseekApiKey}
+              onChange={(e) => updateDraft({ deepseekApiKey: e.target.value })}
+              placeholder="DeepSeek sk-..."
+              className="input-line"
+            />
+          </Field>
+
+          <Field label="Aliyun API Key">
+            <input
+              type="password"
+              value={draft.aliyunApiKey}
+              onChange={(e) => updateDraft({ aliyunApiKey: e.target.value })}
+              placeholder="阿里百炼 sk-..."
+              className="input-line"
+            />
+          </Field>
+        </div>
 
         {/* 模型选择 */}
         <Field label="Model">
@@ -138,7 +145,7 @@ export function SettingsDrawer() {
             onChange={(e) => updateDraft({ model: e.target.value })}
             className="input-line"
           >
-            {MODELS.map((m) => (
+            {AI_MODEL_OPTIONS.map((m) => (
               <option key={m.value} value={m.value} className="bg-surface-container">
                 {m.label}
               </option>

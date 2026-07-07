@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 stores/index 的 useChatStore、useSettingsStore、useMemoryStore；依赖 lib/ai、lib/asr、lib/tts、lib/recorder
+ * [INPUT]: 依赖 stores/index 的 useChatStore、useSettingsStore、useMemoryStore；依赖 lib/ai、lib/aiModels、lib/asr、lib/tts、lib/recorder
  * [OUTPUT]: 对外提供 InputBar 组件
  * [POS]: 底部输入区，处理文字发送、流式 AI 回复、持续语音模式（麦克风常开 + VAD 判停 + TTS 打断）
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,6 +8,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useChatStore, useMemoryStore, useSettingsStore, useUIStore } from "@/stores";
 import { completeChat } from "@/lib/ai";
+import { getAIModelApiKey } from "@/lib/aiModels";
 import { getContextWindowSize, getCoreRecentMemory, saveMessage } from "@/lib/db";
 import { tickAndDistill } from "@/lib/memory";
 import { playTts, type TtsHandle } from "@/lib/tts";
@@ -206,7 +207,8 @@ export function InputBar() {
       debugLog("[VOICE] sendContent skipped: empty content", { source });
       return;
     }
-    if (!settings.apiKey) {
+    const chatApiKey = getAIModelApiKey(settings.model, settings);
+    if (!chatApiKey) {
       debugLog("[VOICE] sendContent skipped: missing chat API key", { source });
       return;
     }
@@ -261,7 +263,7 @@ export function InputBar() {
       debugLog("[AI] request attempt start", { source, attempt });
       const reply = await completeChat({
         messages: history,
-        apiKey: settings.apiKey,
+        apiKey: chatApiKey,
         model: settings.model,
         systemPrompts: prompts,
       });
@@ -341,7 +343,9 @@ export function InputBar() {
         if (emotion) useUIStore.getState().setEmotion(emotion);
 
         // 计数并按需触发记忆蒸馏（fire-and-forget，不阻塞回复流）
-        const { apiKey, model } = useSettingsStore.getState();
+        const latestSettings = useSettingsStore.getState();
+        const { model } = latestSettings;
+        const apiKey = getAIModelApiKey(model, latestSettings);
         void tickAndDistill(completedMessages, apiKey, model);
         void tickAffinity();
 
@@ -374,7 +378,7 @@ export function InputBar() {
           nextStatus: voiceModeRef.current ? "recording" : "idle",
         });
     }
-  }, [settings.apiKey, settings.model, settings.ttsApiKey, settings.ttsResourceId, settings.voiceEnabled, setStatus, speakReply]);
+  }, [settings.deepseekApiKey, settings.aliyunApiKey, settings.model, settings.ttsApiKey, settings.ttsResourceId, settings.voiceEnabled, setStatus, speakReply]);
 
   // 保持 ref 同步，让 status effect 能调到最新版本
   sendContentRef.current = sendContent;

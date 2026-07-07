@@ -16,6 +16,7 @@ import { useChatStore, useMemoryStore, useSettingsStore, useUIStore, type Displa
 import { clearMessages, getMessages, getMemories, getSettings, getAffinity } from "@/lib/db";
 import { getCharacterStatus, STATUS_LABEL } from "@/lib/persona";
 import { forceDistillMessages } from "@/lib/memory";
+import { getAIModelApiKey } from "@/lib/aiModels";
 
 const IDLE_COMPACT_INTERVAL_MS = 5 * 60 * 1000;
 const IDLE_COMPACT_AFTER_MS = 30 * 60 * 1000;
@@ -57,7 +58,9 @@ export default function App() {
       const lastMessage = messages[messages.length - 1];
       if (Date.now() - lastMessage.timestamp < IDLE_COMPACT_AFTER_MS) return;
 
-      const { apiKey, model } = useSettingsStore.getState();
+      const settings = useSettingsStore.getState();
+      const { model } = settings;
+      const apiKey = getAIModelApiKey(model, settings);
       if (!apiKey) return;
 
       idleCompactRunningRef.current = true;
